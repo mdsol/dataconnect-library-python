@@ -1,4 +1,4 @@
 #!/bin/bash
 
 
-mypy --strict python_template
+mypy --strict "$(pwd)/dataconnect"

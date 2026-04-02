@@ -1,23 +1,26 @@
 [tool.poetry]
-name = "dataconnect-library-python"
+name = "python-template"
 version = "0.1.0"
-description = "Python library built by Medidata for connecting to Data Connect and programmatically querying and retrieving data."
-authors = ["Team 348 (SDK) <List_custom_t348_cds_sdk@3ds.com>"]
+description = ""
+authors = ["Jeremy Mann <jmann@mdsol.com>"]
 
 [[tool.poetry.source]]
 # Needs AUTH in ENV (using UPPERCASE name):
 #  https://python-poetry.org/docs/repositories/#configuring-credentials
+#
 # export POETRY_HTTP_BASIC_MDSOL_PASSWORD=$ARTIFACTORY_PASSWORD
 # export POETRY_HTTP_BASIC_MDSOL_USERNAME=$ARTIFACTORY_USERNAME
 name = "mdsol"
 url = "https://mdsol.jfrog.io/artifactory/api/pypi/pypi-prod-virtual/simple"
+secondary = false
 
 #
 # Dependancies
 #
 [tool.poetry.dependencies]
-python = "^3.10"
-pyarrow = "^14.0"
+python = "^3.8"
+pyyaml = "^6.0"
+astinus = "^0.7.0"
 
 # SERVICE
 [tool.poetry.group.service]
@@ -38,11 +41,13 @@ pandas = "^2.0.2"
 optional = true
 
 [tool.poetry.group.dev.dependencies]
-mypy = "^1.20.2"
+mypy = "^1.3"
+pdbpp = "^0.10.3"
 pre-commit = "^3.3.2"
-pytest = "^7.3.2"
-pytest-cov = "^4.1.0"
-ruff = "0.15.11"
+# below revs must exactly match .pre-commit-config.yaml
+black = "23.3.0"
+autoflake = "2.1.1"
+isort = "5.12.0"
 
 # TEST
 [tool.poetry.group.test]
@@ -59,38 +64,5 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
 addopts = "--strict-markers"
 markers = "benchmark: mark tests that run performance benchmarks"
-
-[tool.ruff]
-target-version = "py310"
-line-length = 120
-exclude = [
-    ".venv",
-    ".git",
-    ".github",
-    "__pycache__",
-    "site-packages",
-    "build",
-    "dist",
-    "*.egg-info",
-    ".mypy_cache",
-    "doc/",
-    ".deploy",
-    "*.md",
-    "*.sql",
-    "*.yaml"
-]
-
-[tool.ruff.lint]
-select = ["B", "E", "W", "F", "I", "UP", "ANN"]
-ignore = ["ANN401"]  # allow Any in public API
-
-# -----------------------------------------------------------------------
-# mypy
-# -----------------------------------------------------------------------
-[tool.mypy]
-python_version = "3.10"
-strict = true
-ignore_missing_imports = true

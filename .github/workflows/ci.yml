@@ -29,7 +29,9 @@ jobs:
         key: ${{ runner.os }}-precommit-${{ hashFiles('.pre-commit-config.yaml') }}
 
     - name: lint
-      run: scripts/lint.sh
+      run: |
+        chmod +x scripts/lint.sh
+        scripts/lint.sh
 
     - name: build docker image
       working-directory: ${{ github.workspace }}
@@ -50,4 +52,3 @@ jobs:
 
     - name: typecheck
       run: docker run dataconnect-library-python "scripts/typecheck.sh"
-
