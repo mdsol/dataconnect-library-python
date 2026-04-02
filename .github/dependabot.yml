@@ -1,0 +1,31 @@
+version: 2
+
+registries:
+  artifactory-ecr:
+    type: docker-registry
+    url: https://mdsol-docker-prod-virtual.jfrog.io
+    username: ${{secrets.ARTIFACTORY_USERNAME}}
+    password: ${{secrets.ARTIFACTORY_TOKEN}}
+  artifactory-python:
+    type: python-index
+    url: https://mdsol.jfrog.io/artifactory/api/pypi/pypi-prod-virtual/simple
+    username: ${{secrets.ARTIFACTORY_USERNAME}}
+    password: ${{secrets.ARTIFACTORY_TOKEN}}
+    replaces-base: true
+
+updates:
+  - package-ecosystem: "docker"
+    directory: "/.12factor"
+    registries:
+      - artifactory-ecr
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+  - package-ecosystem: "pip"
+    directory: "/"
+    insecure-external-code-execution: allow
+    registries:
+      - artifactory-python
+    schedule:
+      interval: "weekly"
+      day: "saturday"

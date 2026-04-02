@@ -1,0 +1,17 @@
+# Exclude all files by default from the build context
+*
+
+# Add back just needed directories
+!python_template
+!scripts
+!tests
+!pyproject.toml
+!poetry.lock
+
+# CLEANUP unwanted nested system files
+**/__pycache__
+**/*.pyc
+**/.git*
+**/.*project
+**/.DS_Store
+**/._*

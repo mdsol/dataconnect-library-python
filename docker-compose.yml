@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  python-template:
+    image: python-template
+    volumes:
+      - .:/home/app
+    environment:
+        - ARTIFACTORY_USER
+        - ARTIFACTORY_TOKEN
+        - POETRY_HTTP_BASIC_MDSOL_USERNAME=$ARTIFACTORY_USER
+        - POETRY_HTTP_BASIC_MDSOL_PASSWORD=$ARTIFACTORY_TOKEN
+    # Uncomment the lines below to start the service in interactive mode
+    # entrypoint: /bin/bash
+    # stdin_open: true
+    # tty: true

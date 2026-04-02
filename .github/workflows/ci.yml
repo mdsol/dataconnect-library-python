@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+
+    runs-on: [ self-hosted, ubuntu-latest ]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Cache pre-commit hooks
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/pre-commit
+        key: ${{ runner.os }}-precommit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+    - name: lint
+      run: scripts/lint.sh
+
+    - name: build docker image
+      working-directory: ${{ github.workspace }}
+      run: |
+        git clone --depth=1 "https://$TRAVIS_ROBOT_KEY@github.com/mdsol/engineering-helper-scripts.git" ../ehs
+        eval $(ssh-agent)
+        PACKAGE_GROUPS=dev,test ../ehs/docker/build_container.sh .12factor/Dockerfile --build-arg PACKAGE_GROUPS
+      env:
+        TRAVIS_ROBOT_KEY: ${{ secrets.TRAVIS_ROBOT_KEY }}
+        ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
+        ARTIFACTORY_USER: ${{ vars.ARTIFACTORY_USER }}
+
+    - name: test (unit & integration)
+      run: docker run python-template "scripts/test.sh"
+
+    - name: benchmarks
+      run: docker run python-template "scripts/benchmark.sh"
+
+    - name: typecheck
+      run: docker run python-template "scripts/typecheck.sh"
+
