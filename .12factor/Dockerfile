@@ -9,7 +9,7 @@ ARG VENV_PATH="/tmp/venv"
 ARG APP_HOME="/home/app"
 ARG PACKAGE_GROUPS="main"
 
-FROM mdsol-docker-prod-virtual.jfrog.io/mdsol/python310:2023.4.10182043 as python_base
+FROM mdsol-docker-prod-virtual.jfrog.io/mdsol/python310:2026.4.21032059 as python_base
 
 #
 # Stage 1.A) Get helper scripts (not currently used)
