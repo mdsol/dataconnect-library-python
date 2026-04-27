@@ -1,6 +1,6 @@
 ---
 apiVersion: backstage.io/v1alpha1
-kind: Uninitialized # values: Uninitialized or Component. Use `Component` once this repository is past the initial commit.
+kind: Component
 spec:
   type: library
   lifecycle: production

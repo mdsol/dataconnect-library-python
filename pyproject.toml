@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "python-template"
+name = "dataconnect-library-python"
 version = "0.1.0"
-description = ""
-authors = ["Jeremy Mann <jmann@mdsol.com>"]
+description = "Python library built by Medidata for connecting to Data Connect and programmatically querying and retrieving data."
+authors = ["Team 348 (SDK) <List_custom_t348_cds_sdk@3ds.com>"]
 
 [[tool.poetry.source]]
 # Needs AUTH in ENV (using UPPERCASE name):

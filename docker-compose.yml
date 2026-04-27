@@ -1,8 +1,8 @@
 version: "3.8"
 
 services:
-  python-template:
-    image: python-template
+  dataconnect-library-python:
+    image: dataconnect-library-python
     volumes:
       - .:/home/app
     environment:
