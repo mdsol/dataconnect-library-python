@@ -3,6 +3,6 @@
 
 pytest \
     -m "not benchmark" \
-    --cov python_template \
+    --cov dataconnect_library_python \
     --cov-report term \
     --cov-report html \
