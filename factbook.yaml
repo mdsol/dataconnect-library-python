@@ -5,6 +5,7 @@ spec:
   type: library
   lifecycle: production
   owner: List_custom_t348_cds_sdk@3ds.com
+  experience: data
 
 metadata:
   json_schema: "https://github.com/mdsol/platform-standards/tree/master/schemas/v1alpha1.schema.json" # This is a constant, just leave as is.
@@ -15,13 +16,11 @@ metadata:
     - number: 348
       name: Team 348 (SDK)
       email: List_custom_t348_cds_sdk@3ds.com
-
   people:
     - role: technical owner
       email: List_custom_t348_cds_sdk@3ds.com
     - role: engineering manager
       email: List_custom_t348_cds_sdk@3ds.com
-
 
   annotations:
     product: Data Connect Library for Python
