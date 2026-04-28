@@ -1,52 +1,26 @@
-# Visit https://github.com/mdsol/platform-standards/blob/main/schemas/v1alpha1.schema.md for all the details of this file format.
-
-# This YAML file starts starts with '---', which is the separator for YAML documents within the same file.
-# If the repository contains more than one component, use multiple YAML documents in this same file to document each of them.
-
-# Instructions:
-# Read the comments on each line for quick on-spot instructions or the file format above for complete overview.
-# Update all values in <>.
-# Remove all the unnecessary extra comments from the file.
 ---
-apiVersion: backstage.io/v1alpha1 # This is a constant, just leave as is.
-kind: Uninitialized # values: Uninitialized or Component. Use `Component` once this repository is past the initial commit.
+apiVersion: backstage.io/v1alpha1
+kind: Component
 spec:
-  type: <choose a type> # web_backend == only API, web_frontend == only UI, web_fullstack == both, mobile == mobile app, library, documentation, other
-  lifecycle: experimental # values: experimental, production or deprecated. `production` means development towards production even if not in production yet.
-  owner: <team or person email>@mdsol.com
+  type: library
+  lifecycle: production
+  owner: List_custom_t348_cds_sdk@3ds.com
+  experience: data
 
 metadata:
-  # Please look at the schema below for more information about how to write a factbook
   json_schema: "https://github.com/mdsol/platform-standards/tree/master/schemas/v1alpha1.schema.json" # This is a constant, just leave as is.
-  name: <Name of this entity>  # Name of this entity. Using kebab-case (i.e. passing the regex ^[a-z0-9-]+$)
-  description: <Description of this entity>
-#  aliases: ["", ""] # Add a list of extra names if this entity has other names
-
-# Uncomment and fill in the security section if this repository holds the codebase of a service.
-#  security:
-#    authentication: [mauth] # List all the authentication methods used in our service. See the json schema for options.
-#    network_accessiblity: [private] # `private` == internal vpn only, `public` == directly accesible outside the vpn
-#    data_types: [clinical] # List the type of data used in your service.
-
-  teams:  # REQUIRED: If multiple teams work on this repo, please list them all
-    - number: <Team number> # Must be a number, e.g.: 51
-      name: <Team name> # OPTIONAL, only include if the team has a known name without number (e.g. AE, Devtools, etc.)
-
+  name: dataconnect-library-python
+  title: Data Connect Library for Python
+  description: Python library built by Medidata for connecting to Data Connect and programmatically querying and retrieving data.
+  teams:
+    - number: 348
+      name: Team 348 (SDK)
+      email: List_custom_t348_cds_sdk@3ds.com
   people:
-    # An architect MUST be set among the people in this project.
-    # You can optionally add more people, for available roles see the "Person" schema in the JSON Schema linked above.
-    - role: technical owner   # REQUIRED. Technical owner is someone who can answer technical questions
-      email: <technical owner>@mdsol.com
-    - role: product owner   # OPTIONAL. product owner is someone who can answer product related questions
-      email: <product owner>@mdsol.com
+    - role: technical owner
+      email: List_custom_t348_cds_sdk@3ds.com
+    - role: engineering manager
+      email: List_custom_t348_cds_sdk@3ds.com
 
-  channels: # List all the places where we can find you. Mainly slack channels.
-    - url: https://mdsol.slack.com/messages/<channel name>  # Use a human readable channel name.
-      role: slack
-      automated_messaging: false # optional
-
-  annotations:  # Anything extra, for instance links.
-    arc42: https://learn.mdsol.com/<path to arc42 docs>
-    docs: https://learn.mdsol.com/<path to other docs>
-    medistrano: https://medistrano.imedidata.net/projects/<project ID>
-    jira: https://jira.mdsol.com/secure/RapidBoard.jspa?rapidView=<board ID>
+  annotations:
+    product: Data Connect Library for Python

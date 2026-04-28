@@ -23,7 +23,7 @@ jobs:
         python-version: "3.11"
 
     - name: Cache pre-commit hooks
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pre-commit
         key: ${{ runner.os }}-precommit-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -43,11 +43,11 @@ jobs:
         ARTIFACTORY_USER: ${{ vars.ARTIFACTORY_USER }}
 
     - name: test (unit & integration)
-      run: docker run python-template "scripts/test.sh"
+      run: docker run dataconnect-library-python "scripts/test.sh"
 
     - name: benchmarks
-      run: docker run python-template "scripts/benchmark.sh"
+      run: docker run dataconnect-library-python "scripts/benchmark.sh"
 
     - name: typecheck
-      run: docker run python-template "scripts/typecheck.sh"
+      run: docker run dataconnect-library-python "scripts/typecheck.sh"
 

@@ -161,3 +161,6 @@ cython_debug/
 
 # Ignore engineering helper scripts if checked out into your repo.
 ehs
+
+# VS Code
+.vscode/
