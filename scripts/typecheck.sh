@@ -1,4 +1,7 @@
 #!/bin/bash
 
+set -e
 
-mypy --strict "$(pwd)/dataconnect"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+mypy --strict "$PROJECT_ROOT/dataconnect"

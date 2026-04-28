@@ -2,7 +2,7 @@
 *
 
 # Add back just needed directories
-!python_template
+!dataconnect
 !scripts
 !tests
 !pyproject.toml
