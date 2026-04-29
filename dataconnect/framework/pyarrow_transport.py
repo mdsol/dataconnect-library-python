@@ -25,7 +25,7 @@ class PyArrowFlightTransport(FlightTransport):
         headers: dict[str, str] | None = None,
     ) -> None:
         try:
-            self._client = flight.FlightClient(  # type: ignore[attr-defined]
+            self._client = flight.FlightClient(
                 location,
                 tls_root_certs=tls_root_certs,
             )
@@ -46,21 +46,21 @@ class PyArrowFlightTransport(FlightTransport):
                 self._call_headers.append((b"authorization", f"Bearer {credentials.token}".encode()))
             else:
                 raise DataConnectError(f"Unsupported credentials type: {type(credentials)}")
-        except flight.FlightUnauthenticatedError as exc:  # type: ignore[attr-defined]
+        except flight.FlightUnauthenticatedError as exc:
             raise AuthenticationError(f"Authentication failed: {exc}") from exc
-        except flight.FlightError as exc:  # type: ignore[attr-defined]
+        except flight.FlightError as exc:
             raise ConnectionError(str(exc)) from exc
 
-    def __options(self) -> flight.FlightCallOptions:  # type: ignore
-        return flight.FlightCallOptions(headers=self._call_headers)  # type: ignore[attr-defined]
+    def __options(self) -> flight.FlightCallOptions:
+        return flight.FlightCallOptions(headers=self._call_headers)
 
     # FlightTransport
     def do_get(self, ticket: bytes) -> RecordBatchStream:
         try:
-            reader = self._client.do_get(flight.Ticket(ticket), self.__options())  # type: ignore[attr-defined]
-        except flight.FlightUnauthenticatedError as exc:  # type: ignore[attr-defined]
+            reader = self._client.do_get(flight.Ticket(ticket), self.__options())
+        except flight.FlightUnauthenticatedError as exc:
             raise AuthenticationError(f"Authentication failed: {exc}") from exc
-        except flight.FlightError as exc:  # type: ignore[attr-defined]
+        except flight.FlightError as exc:
             raise QueryError(str(exc)) from exc
         return _PyArrowRecordBatchStream(reader)
 
@@ -79,14 +79,14 @@ class PyArrowFlightTransport(FlightTransport):
 class _PyArrowRecordBatchStream(RecordBatchStream):
     """Adapter for pyarrow RecordBatchReader to implement RecordBatchStream."""
 
-    def __init__(self, reader: flight.FlightStreamReader) -> None:  # type: ignore
+    def __init__(self, reader: flight.FlightStreamReader) -> None:
         self._reader = reader
 
     def read_all(self) -> pa.Table:
         """Read all record batches into a single PyArrow Table."""
         try:
             return self._reader.read_all()
-        except flight.FlightError as exc:  # type: ignore[attr-defined]
+        except flight.FlightError as exc:
             raise QueryError(str(exc)) from exc
 
     def __iter__(self) -> Iterator[pa.RecordBatch]:
@@ -96,5 +96,5 @@ class _PyArrowRecordBatchStream(RecordBatchStream):
                 yield chunk.data
         except StopIteration:
             return
-        except flight.FlightError as exc:  # type: ignore[attr-defined]
+        except flight.FlightError as exc:
             raise QueryError(str(exc)) from exc
