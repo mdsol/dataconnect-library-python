@@ -65,7 +65,7 @@ addopts = "--strict-markers"
 markers = "benchmark: mark tests that run performance benchmarks"
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py313"
 line-length = 120
 exclude = [
     ".venv",
@@ -92,6 +92,6 @@ ignore = ["ANN401"]  # allow Any in public API
 # mypy
 # -----------------------------------------------------------------------
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.13"
 strict = true
 ignore_missing_imports = true
