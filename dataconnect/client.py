@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from types import TracebackType
 from typing import Any
 
@@ -64,8 +63,6 @@ class DataConnectClient:
     def fetch_data(
         self,
         dataset_uuid: str,
-        study_uuid: str | None = None,
-        study_environment_uuid: str | None = None,
         first_n_rows: int | None = None,
     ) -> pd.DataFrame:
         """Fetch data of a single dataset as a pandas DataFrame.
@@ -77,15 +74,8 @@ class DataConnectClient:
         Parameters
         ----------
         dataset_uuid:
-            UUID of the target dataset (required).
-        study_uuid:
-            Deprecated. The Study context is resolved automatically; this
-            argument is ignored and emitting it triggers a
-            ``DeprecationWarning``.
-        study_environment_uuid:
-            Deprecated. The Study Environment context is resolved
-            automatically; this argument is ignored and emitting it triggers
-            a ``DeprecationWarning``.
+            UUID of the target dataset (required). The Study and Study
+            Environment contexts are resolved automatically server-side.
         first_n_rows:
             Optional row limit. When provided, only the first
             ``first_n_rows`` rows of the dataset are returned. When omitted
@@ -96,28 +86,11 @@ class DataConnectClient:
         pandas.DataFrame
             The dataset materialized as a pandas DataFrame.
         """
-        if study_uuid is not None and str(study_uuid).strip() != "":
-            warnings.warn(
-                "You only need to provide dataset_uuid; the Study context is "
-                "now resolved automatically.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        if study_environment_uuid is not None and str(study_environment_uuid).strip() != "":
-            warnings.warn(
-                "You only need to provide dataset_uuid; the Study Environment "
-                "context is now optional, and will be resolved automatically.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
         if first_n_rows is not None and first_n_rows <= 0:
             raise ValueError("first_n_rows must be a positive integer when provided.")
 
         return _get_dataset(
             transport=self._transport,
-            study_uuid=study_uuid,
-            study_environment_uuid=study_environment_uuid,
             dataset_uuid=dataset_uuid,
             limit=first_n_rows,
         )
@@ -149,8 +122,6 @@ class DataConnectClient:
 
 def _get_dataset(
     transport: FlightTransport,
-    study_uuid: str | None,
-    study_environment_uuid: str | None,
     dataset_uuid: str,
     limit: int | None,
 ) -> pd.DataFrame:
@@ -164,8 +135,6 @@ def _get_dataset(
         raise ValueError("dataset_uuid must be provided.")
 
     ticket_data: dict[str, Any] = {
-        "study_uuid": study_uuid,
-        "study_env_uuid": study_environment_uuid,
         "dataset_uuid": dataset_uuid,
         "dataset_name": "",
         "limit": limit,
