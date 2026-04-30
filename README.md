@@ -21,7 +21,7 @@ pip install dataconnect          # core (pyarrow + pydantic + httpx)
 pip install dataconnect[pandas]  # + pandas for .to_pandas() on results
 ```
 
-Requires **Python ≥ 3.10**.
+Requires **Python ≥ 3.13**.
 
 ---
 
