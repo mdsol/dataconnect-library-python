@@ -27,13 +27,6 @@ optional = true
 [tool.poetry.group.service.dependencies]
 gunicorn ="^20.1.0"
 
-# ML
-[tool.poetry.group.ml]
-optional = true
-
-[tool.poetry.group.ml.dependencies]
-pandas = "^2.0.2"
-
 # DEV
 [tool.poetry.group.dev]
 optional = true

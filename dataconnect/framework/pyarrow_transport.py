@@ -8,7 +8,7 @@ import pyarrow as pa
 from pyarrow import flight
 
 from dataconnect.auth import BearerTokenAuth, Credentials
-from dataconnect.exceptions import AuthenticationError, DataConnectError, QueryError
+from dataconnect.exceptions import AuthenticationError, ConnectionError, DataConnectError, QueryError
 from dataconnect.framework.transport import FlightTransport, RecordBatchStream
 
 

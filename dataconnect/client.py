@@ -8,7 +8,6 @@ from types import TracebackType
 from typing import Any
 
 import pandas as pd
-import pyarrow as pa
 
 from dataconnect import _encoding
 from dataconnect.auth import BearerTokenAuth
@@ -175,18 +174,5 @@ def _get_dataset(
     ticket = _encoding.dumps(ticket_data)
     stream = transport.do_get(ticket)
 
-    # Stream batches directly into a single Arrow Table to minimize memory
-    # overhead for large datasets, then convert to pandas in one pass so that
-    # clinical data types (dates, decimals, etc.) are preserved.
-    batches: list[pa.RecordBatch] = []
-    schema: pa.Schema | None = None
-    for batch in stream:
-        if schema is None:
-            schema = batch.schema
-        batches.append(batch)
-
-    if not batches:
-        return pd.DataFrame()
-
-    table = pa.Table.from_batches(batches, schema=schema)
+    table = stream.read_all()
     return table.to_pandas()
