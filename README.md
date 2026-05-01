@@ -14,7 +14,7 @@ dependency.
 ## Installation
 
 ```bash
-pip install dataconnect          # core (pyarrow + pydantic + httpx)
+pip install dataconnect          # core (pyarrow)
 pip install dataconnect[pandas]  # + pandas for .to_pandas() on results
 ```
 
@@ -25,7 +25,8 @@ Requires **Python ≥ 3.13**.
 ## Quick start
 
 ```python
-import pyarrow as pa
+from uuid import UUID
+
 from dataconnect import DataConnectClient
 
 
@@ -36,6 +37,9 @@ with DataConnectClient.connect(
 ) as client:
 
     studies = client.get_studies(search_study_name="ACME")
+
+    datasets = client.get_datasets(study_environment_uuid=UUID("cec9f2a7-07ba-4fa8-bfcf-34fbc5d56793"))
+
 ```
 ## Development
 
