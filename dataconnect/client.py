@@ -12,7 +12,7 @@ import pyarrow as pa
 from dataconnect import _encoding
 from dataconnect.auth import BearerTokenAuth
 from dataconnect.framework.pyarrow_transport import PyArrowFlightTransport
-from dataconnect.framework.transport import FlightTransport
+from dataconnect.framework.transport import FlightTransport, RecordBatchStream
 from dataconnect.models import Dataset, Study
 
 # Flight actions / commands
@@ -86,12 +86,16 @@ class DataConnectClient:
         if first_n_rows is not None:
             ticket_payload["limit"] = int(first_n_rows)
 
-        stream = self._transport.do_get(_encoding.dumps(ticket_payload))
+        ticket = self._transport.do_action(_ACTION_FETCH_TICKET, _encoding.dumps(ticket_payload))
+        if not ticket:
+            raise RuntimeError("Server returned no data for the fetch_data action.")
+
+        stream = self._transport.do_get(ticket)
         return self._stream_to_pandas(stream, first_n_rows)
 
     def _stream_to_pandas(
         self,
-        stream: pa.RecordBatchReader | Any,
+        stream: RecordBatchStream,
         first_n_rows: int | None,
     ) -> pd.DataFrame:
         """Convert a record-batch stream into a pandas DataFrame."""
@@ -122,6 +126,9 @@ class DataConnectClient:
 
         if not frames:
             return pd.DataFrame()
+
+        if len(frames) == 1:
+            return frames[0]
 
         return pd.concat(frames, ignore_index=True, copy=False)
 
