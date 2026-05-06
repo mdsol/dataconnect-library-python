@@ -12,11 +12,14 @@ from uuid import UUID
 
 from dataconnect.models import Study, StudyEnvironment
 from dataconnect.transport.models import ResourceInfo
-
+from dataconnect.exceptions import NotFoundError
 
 def resource_to_study(resource: ResourceInfo) -> Study:
     """Parse a transport-layer ``ResourceInfo`` into a ``Study`` domain object."""
 
+    if not resource or not resource.endpoints or not resource.endpoints[0].ticket:
+        raise NotFoundError("Invalid resource: missing endpoints or ticket")
+    
     data = json.loads(resource.endpoints[0].ticket.decode("utf-8"))
 
     return Study(

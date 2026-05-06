@@ -69,7 +69,7 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             return [resource_to_study(r) for r in resources]
-        except (KeyError, TypeError, ValueError) as ex:
+        except (IndexError, KeyError, TypeError, ValueError) as ex:
             raise ValidationError(f"Unexpected studies response format: {ex}") from ex
 
     def close(self) -> None:

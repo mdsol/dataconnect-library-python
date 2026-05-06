@@ -77,7 +77,11 @@ class ArrowFlightTransport(Transport):
         flight_type = _ACTION_FLIGHT_TYPE.get(request.action)
 
         if flight_type is None:
-            raise TransportConnectionError(f"Unknown action: {request.action!r}")
+            raise TransportStatusError(
+                 f"Unknown action: {request.action!r}",
+                 status_code=3,
+                 grpc_status="INVALID_ARGUMENT"
+            )
 
         body = json.loads(request.body) if request.body else {}
         criteria = json.dumps({**body, "flight_type": flight_type}, separators=(",", ":")).encode("utf-8")
