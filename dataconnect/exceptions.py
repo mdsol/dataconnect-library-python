@@ -30,6 +30,7 @@ class AuthenticationError(DataConnectError):
 class AuthorizationError(DataConnectError):
     """Authorization failure."""
 
+
 class NotFoundError(DataConnectError):
     """The requested resource (study, dataset, etc.) was not found."""
 

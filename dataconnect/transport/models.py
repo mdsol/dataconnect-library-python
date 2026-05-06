@@ -38,4 +38,3 @@ class ResourceInfo:
     endpoints: list[DataRef]
     total_records: int
     schema_bytes: bytes
-

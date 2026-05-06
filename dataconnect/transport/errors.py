@@ -20,8 +20,10 @@ class TransportConnectionError(TransportError):
 class TransportAuthenticationError(TransportError):
     """Raised on authentication failures."""
 
+
 class TransportAuthorizationError(TransportError):
     """Raised on authorization failures."""
+
 
 class TransportStatusError(TransportError):
     """Raised when the server returns an explicit error status."""

@@ -18,11 +18,9 @@ from dataconnect.models import Study, StudyEnvironment
 __all__ = [
     # Client
     "DataConnectClient",
-
     # Domain models
     "Study",
     "StudyEnvironment",
-
     # Exceptions — catch these in user application code
     "DataConnectError",
     "ConnectionError",
