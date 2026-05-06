@@ -1,28 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True)
-class Study:
-    id: str
-    name: str
+from dataclasses import dataclass, field
+from uuid import UUID
 
 
 @dataclass(frozen=True)
 class StudyEnvironment:
-    """Environment variables for a study."""
-
-
-@dataclass(frozen=True)
-class Dataset:
-    id: str
-    study_id: str
+    uuid: UUID
     name: str
 
 
 @dataclass(frozen=True)
-class DatasetVersion:
-    id: str
-    dataset_id: str
+class Study:
+    uuid: UUID
     name: str
+    environments: list[StudyEnvironment] = field(default_factory=list)
