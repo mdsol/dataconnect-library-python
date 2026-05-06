@@ -3,21 +3,31 @@
 from __future__ import annotations
 
 from dataconnect.client import DataConnectClient
-from dataconnect.exceptions import AuthenticationError, ConnectionError, DataConnectError
-from dataconnect.models import (
-    Dataset,
-    DatasetVersion,
-    Study,
-    StudyEnvironment,
+from dataconnect.exceptions import (
+    AuthenticationError,
+    AuthorizationError,
+    ConnectionError,
+    DataConnectError,
+    NotFoundError,
+    QueryError,
+    ServerError,
+    ValidationError,
 )
+from dataconnect.models import Study, StudyEnvironment
 
 __all__ = [
+    # Client
     "DataConnectClient",
+    # Domain models
     "Study",
     "StudyEnvironment",
-    "Dataset",
-    "DatasetVersion",
+    # Exceptions — catch these in user application code
     "DataConnectError",
     "ConnectionError",
     "AuthenticationError",
+    "AuthorizationError",
+    "NotFoundError",
+    "QueryError",
+    "ServerError",
+    "ValidationError",
 ]
