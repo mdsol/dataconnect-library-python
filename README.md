@@ -35,8 +35,7 @@ with DataConnectClient.connect(
     token="your-bearer-token",
 ) as client:
 
-    studies = client.studies(search_study_name="ACME", page=1, page_size=10)
-    study = studies[0]
+    studies = client.get_studies(search_study_name="ACME")
 ```
 ## Development
 
