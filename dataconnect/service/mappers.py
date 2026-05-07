@@ -40,7 +40,7 @@ def resource_to_dataset_version(resource: ResourceInfo) -> DatasetVersion:
 
     return DatasetVersion(
         study_uuid=UUID(data["study_uuid"]),
-        study_env_uuid=UUID(data["study_env_uuid"]),
+        study_environment_uuid=UUID(data["study_env_uuid"]),
         dataset_uuid=UUID(data["dataset_uuid"]),
         dataset_name=data["dataset_name"],
         dataset_version=data["dataset_version"],

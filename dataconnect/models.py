@@ -20,7 +20,7 @@ class Study:
 @dataclass(frozen=True)
 class DatasetVersion:
     study_uuid: UUID
-    study_env_uuid: UUID
+    study_environment_uuid: UUID
     dataset_uuid: UUID
     dataset_name: str
     dataset_version: str

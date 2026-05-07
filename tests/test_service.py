@@ -58,7 +58,7 @@ def test_get_dataset_versions_returns_mapped_models_and_builds_request() -> None
     assert result == [
         DatasetVersion(
             study_uuid=UUID("64a98a9b-1512-44c8-92af-e4cab0183670"),
-            study_env_uuid=UUID("4d1fd10d-5b57-4fd8-a436-f4ec59ce2e4a"),
+            study_environment_uuid=UUID("4d1fd10d-5b57-4fd8-a436-f4ec59ce2e4a"),
             dataset_uuid=dataset_uuid,
             dataset_name="labs",
             dataset_version="1",
