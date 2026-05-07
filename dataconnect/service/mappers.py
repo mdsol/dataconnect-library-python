@@ -10,12 +10,16 @@ from __future__ import annotations
 import json
 from uuid import UUID
 
-from dataconnect.models import Study, StudyEnvironment
+from dataconnect.exceptions import NotFoundError
+from dataconnect.models import DatasetVersion, Study, StudyEnvironment
 from dataconnect.transport.models import ResourceInfo
 
 
 def resource_to_study(resource: ResourceInfo) -> Study:
     """Parse a transport-layer ``ResourceInfo`` into a ``Study`` domain object."""
+
+    if not resource or not resource.endpoints or not resource.endpoints[0].ticket:
+        raise NotFoundError("Invalid resource: missing endpoints or ticket")
 
     data = json.loads(resource.endpoints[0].ticket.decode("utf-8"))
 
@@ -23,4 +27,21 @@ def resource_to_study(resource: ResourceInfo) -> Study:
         uuid=UUID(data["uuid"]),
         name=data["name"],
         environments=[StudyEnvironment(uuid=UUID(e["uuid"]), name=e["name"]) for e in data.get("environments", [])],
+    )
+
+
+def resource_to_dataset_version(resource: ResourceInfo) -> DatasetVersion:
+    """Parse a transport-layer ``ResourceInfo`` into a ``DatasetVersion`` domain object."""
+
+    if not resource or not resource.endpoints or not resource.endpoints[0].ticket:
+        raise NotFoundError("Invalid resource: missing endpoints or ticket")
+
+    data = json.loads(resource.endpoints[0].ticket.decode("utf-8"))
+
+    return DatasetVersion(
+        study_uuid=UUID(data["study_uuid"]),
+        study_env_uuid=UUID(data["study_env_uuid"]),
+        dataset_uuid=UUID(data["dataset_uuid"]),
+        dataset_name=data["dataset_name"],
+        dataset_version=data["dataset_version"],
     )
