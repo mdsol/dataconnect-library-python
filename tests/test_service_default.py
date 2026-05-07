@@ -21,11 +21,7 @@ class StubTransport:
 
 
 def _study_resource(name: str = "Study A") -> ResourceInfo:
-    payload = (
-        '{"uuid":"12345678-1234-1234-1234-123456789abc",'
-        f'"name":"{name}",'
-        '"environments":[]}'
-    ).encode("utf-8")
+    payload = (f'{{"uuid":"12345678-1234-1234-1234-123456789abc","name":"{name}","environments":[]}}').encode()
 
     return ResourceInfo(
         descriptor=b"",
