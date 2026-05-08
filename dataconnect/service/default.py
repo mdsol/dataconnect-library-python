@@ -76,6 +76,10 @@ class DefaultDataConnectService(DataConnectService):
             raise ValidationError(f"Unexpected studies response format: {ex}") from ex
 
     def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]:
+        # Input validation: ensure callers pass a UUID
+        if not isinstance(dataset_uuid, UUID):
+            raise ValidationError("dataset_uuid must be a valid UUID")
+
         request = ResourceQuery(action=_ACTION_LIST_DATASET_VERSIONS).append_body({"dataset_uuid": str(dataset_uuid)})
 
         try:

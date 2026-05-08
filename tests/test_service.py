@@ -111,3 +111,27 @@ def test_manual_resource_query_body_can_be_used_directly() -> None:
     assert json.loads(rq.body) == {"dataset_uuid": str(dataset_uuid)}
     # compact representation (no spaces)
     assert rq.body == body_str
+
+
+def test_get_dataset_versions_raises_validation_error_on_invalid_uuid_input() -> None:
+    """Passing a non-UUID to the service should raise ValidationError."""
+    transport = _FakeTransport(resources=[])
+    service = DefaultDataConnectService(transport)
+
+    with pytest.raises(ValidationError) as excinfo:
+        service.get_dataset_versions("not-a-uuid")
+
+    # Ensure our validation code path is exercised
+    assert "dataset_uuid must be a valid UUID" in str(excinfo.value)
+
+
+def test_get_dataset_versions_raises_validation_error_on_empty_input() -> None:
+    """Passing an empty string to the service should raise ValidationError."""
+    transport = _FakeTransport(resources=[])
+    service = DefaultDataConnectService(transport)
+
+    with pytest.raises(ValidationError) as excinfo:
+        service.get_dataset_versions("")
+
+    # Ensure our validation code path is exercised
+    assert "dataset_uuid must be a valid UUID" in str(excinfo.value)
