@@ -135,3 +135,15 @@ def test_get_dataset_versions_raises_validation_error_on_empty_input() -> None:
 
     # Ensure our validation code path is exercised
     assert "dataset_uuid must be a valid UUID" in str(excinfo.value)
+
+
+def test_get_dataset_versions_raises_validation_error_on_zero_input() -> None:
+    """Passing an empty string to the service should raise ValidationError."""
+    transport = _FakeTransport(resources=[])
+    service = DefaultDataConnectService(transport)
+
+    with pytest.raises(ValidationError) as excinfo:
+        service.get_dataset_versions(UUID(int=0))
+
+    # Ensure our validation code path is exercised
+    assert "dataset_uuid must not be empty" in str(excinfo.value)

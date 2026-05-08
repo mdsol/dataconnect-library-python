@@ -80,6 +80,9 @@ class DefaultDataConnectService(DataConnectService):
         if not isinstance(dataset_uuid, UUID):
             raise ValidationError("dataset_uuid must be a valid UUID")
 
+        if dataset_uuid.int == 0:
+            raise ValidationError("dataset_uuid must not be empty")
+
         request = ResourceQuery(action=_ACTION_LIST_DATASET_VERSIONS).append_body({"dataset_uuid": str(dataset_uuid)})
 
         try:
