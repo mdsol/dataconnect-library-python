@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
+import pandas as pd
+
 from dataconnect.exceptions import (
     AuthenticationError,
     AuthorizationError,
@@ -26,9 +30,6 @@ from dataconnect.transport.errors import (
     TransportStatusError,
 )
 from dataconnect.transport.models import ResourceQuery
-from uuid import UUID
-
-import pandas as pd
 
 # Server action identifiers
 _ACTION_LIST_STUDIES = "studies.list"
@@ -95,7 +96,7 @@ class DefaultDataConnectService(DataConnectService):
             resources = self._transport.list_resources(request)
         except TransportError as ex:
             raise _translate_error(ex) from ex
-        
+
         try:
             frames = [resource_to_fetched_data(r) for r in resources]
         except (IndexError, KeyError, TypeError, ValueError) as ex:
@@ -105,7 +106,6 @@ class DefaultDataConnectService(DataConnectService):
             return pd.DataFrame()
 
         return pd.concat(frames, ignore_index=True)
-
 
     def close(self) -> None:
 

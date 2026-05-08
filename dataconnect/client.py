@@ -8,13 +8,12 @@ the SDK where concrete implementation types are wired together.
 from __future__ import annotations
 
 from types import TracebackType
-
-from dataconnect.models import Study
-from dataconnect.service import DataConnectService, DefaultDataConnectService
-
 from uuid import UUID
 
 import pandas as pd
+
+from dataconnect.models import Study
+from dataconnect.service import DataConnectService, DefaultDataConnectService
 
 _DEFAULT_HOST = "enodia-gateway.platform.imedidata.com"
 _DEFAULT_PORT = 443
@@ -49,7 +48,7 @@ class DataConnectClient:
     def get_studies(self) -> list[Study]:
         """List the studies the client is authorized to access."""
         return self._service.get_studies()
-    
+
     def fetch_data(
         self,
         dataset_uuid: UUID,

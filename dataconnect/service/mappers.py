@@ -8,10 +8,10 @@ decoding) is isolated here.
 from __future__ import annotations
 
 import json
+from uuid import UUID
+
 import pandas as pd
 import pyarrow as pa
-
-from uuid import UUID
 
 from dataconnect.exceptions import NotFoundError
 from dataconnect.models import Study, StudyEnvironment
@@ -31,6 +31,7 @@ def resource_to_study(resource: ResourceInfo) -> Study:
         name=data["name"],
         environments=[StudyEnvironment(uuid=UUID(e["uuid"]), name=e["name"]) for e in data.get("environments", [])],
     )
+
 
 def resource_to_fetched_data(resource: ResourceInfo) -> pd.DataFrame:
     """Parse a transport-layer ``ResourceInfo`` into pandas DataFrame.
