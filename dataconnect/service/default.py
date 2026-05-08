@@ -64,7 +64,7 @@ class DefaultDataConnectService(DataConnectService):
         validate_search_study_name(search_study_name)
 
         request = ResourceQuery(action=_ACTION_LIST_STUDIES)
-        if search_study_name is not None:
+        if search_study_name and search_study_name.strip() != "":
             request = request.append_body({"search_study_name": search_study_name})
 
         try:
