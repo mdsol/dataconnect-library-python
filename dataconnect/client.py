@@ -12,6 +12,10 @@ from types import TracebackType
 from dataconnect.models import Study
 from dataconnect.service import DataConnectService, DefaultDataConnectService
 
+from uuid import UUID
+
+import pandas as pd
+
 _DEFAULT_HOST = "enodia-gateway.platform.imedidata.com"
 _DEFAULT_PORT = 443
 
@@ -45,6 +49,14 @@ class DataConnectClient:
     def get_studies(self) -> list[Study]:
         """List the studies the client is authorized to access."""
         return self._service.get_studies()
+    
+    def fetch_data(
+        self,
+        dataset_uuid: UUID,
+        first_n_rows: int | None = None,
+        ) -> pd.DataFrame:
+        """Fetch data for a given dataset UUID."""
+        return self._service.fetch_data(dataset_uuid, first_n_rows)
 
     # Lifecycle
 

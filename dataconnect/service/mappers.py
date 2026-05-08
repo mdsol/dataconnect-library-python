@@ -8,6 +8,9 @@ decoding) is isolated here.
 from __future__ import annotations
 
 import json
+import pandas as pd
+
+from turtle import pd
 from uuid import UUID
 
 from dataconnect.exceptions import NotFoundError
@@ -28,3 +31,12 @@ def resource_to_study(resource: ResourceInfo) -> Study:
         name=data["name"],
         environments=[StudyEnvironment(uuid=UUID(e["uuid"]), name=e["name"]) for e in data.get("environments", [])],
     )
+
+def resource_to_fetched_data(resource: ResourceInfo) -> pd.DataFrame:
+    """Parse a transport-layer ``ResourceInfo`` into pandas DataFrame."""
+
+    if not resource or not resource.endpoints or not resource.endpoints[0].ticket:
+        raise NotFoundError("Invalid resource: missing endpoints or ticket")
+    
+    data = json.loads(resource.endpoints[0].ticket.decode("utf-8"))
+    return data.to_pandas()
