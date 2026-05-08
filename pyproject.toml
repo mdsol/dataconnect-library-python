@@ -12,7 +12,7 @@ packages = [{include = "dataconnect"}]
 # export POETRY_HTTP_BASIC_MDSOL_USERNAME=$ARTIFACTORY_USERNAME
 name = "mdsol"
 url = "https://mdsol.jfrog.io/artifactory/api/pypi/pypi-prod-virtual/simple"
-priority = "supplemental" 
+priority = "supplemental"
 #
 # Dependancies
 #
