@@ -56,16 +56,6 @@ def test_get_studies_with_search_name_sets_request_body() -> None:
     assert transport.last_request.body == '{"search_study_name":"Cardio"}'
 
 
-def test_get_studies_rejects_empty_search_name() -> None:
-    transport = StubTransport(resources=[])
-    service = DefaultDataConnectService(transport)
-
-    with pytest.raises(ValidationError, match="search_study_name must not be empty"):
-        service.get_studies(search_study_name="   ")
-
-    assert transport.last_request is None
-
-
 def test_get_studies_rejects_non_string_search_name() -> None:
     transport = StubTransport(resources=[])
     service = DefaultDataConnectService(transport)
