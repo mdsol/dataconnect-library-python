@@ -28,6 +28,8 @@ from dataconnect.transport.errors import (
 from dataconnect.transport.models import ResourceQuery
 from uuid import UUID
 
+import pandas as pd
+
 # Server action identifiers
 _ACTION_LIST_STUDIES = "studies.list"
 _ACTION_FETCH_TICKET = "data.fetch_ticket"
@@ -74,7 +76,7 @@ class DefaultDataConnectService(DataConnectService):
         except (IndexError, KeyError, TypeError, ValueError) as ex:
             raise ValidationError(f"Unexpected studies response format: {ex}") from ex
 
-    def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None):
+    def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None) -> pd.DataFrame:
 
         if not dataset_uuid or not str(dataset_uuid).strip():
             raise ValueError("dataset_uuid must be provided.")
@@ -83,8 +85,10 @@ class DefaultDataConnectService(DataConnectService):
             raise ValueError("first_n_rows must be a positive integer when provided.")
 
         request = ResourceQuery(action=_ACTION_FETCH_TICKET).append_body(
-            "dataset_uuid", str(dataset_uuid),
-            limit=first_n_rows,
+            {
+                "dataset_uuid": str(dataset_uuid),
+                "limit": first_n_rows,
+            }
         )
 
         try:
@@ -93,9 +97,14 @@ class DefaultDataConnectService(DataConnectService):
             raise _translate_error(ex) from ex
         
         try:
-            return [resource_to_fetched_data(r) for r in resources]
+            frames = [resource_to_fetched_data(r) for r in resources]
         except (IndexError, KeyError, TypeError, ValueError) as ex:
             raise ValidationError(f"Unexpected data fetch response format: {ex}") from ex
+
+        if not frames:
+            return pd.DataFrame()
+
+        return pd.concat(frames, ignore_index=True)
 
 
     def close(self) -> None:

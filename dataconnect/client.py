@@ -54,8 +54,8 @@ class DataConnectClient:
         self,
         dataset_uuid: UUID,
         first_n_rows: int | None = None,
-        ) -> pd.DataFrame:
-        """Fetch data for a given dataset UUID."""
+    ) -> pd.DataFrame:
+        """Fetch data frames for a given dataset UUID."""
         return self._service.fetch_data(dataset_uuid, first_n_rows)
 
     # Lifecycle

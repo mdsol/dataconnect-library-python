@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import json
 import pandas as pd
+import pyarrow as pa
 
-from turtle import pd
 from uuid import UUID
 
 from dataconnect.exceptions import NotFoundError
@@ -33,10 +33,16 @@ def resource_to_study(resource: ResourceInfo) -> Study:
     )
 
 def resource_to_fetched_data(resource: ResourceInfo) -> pd.DataFrame:
-    """Parse a transport-layer ``ResourceInfo`` into pandas DataFrame."""
+    """Parse a transport-layer ``ResourceInfo`` into pandas DataFrame.
+
+    The ticket bytes are expected to contain an Arrow IPC stream.  They are
+    read via ``pyarrow.ipc.open_stream`` and converted to a ``pd.DataFrame``.
+    """
 
     if not resource or not resource.endpoints or not resource.endpoints[0].ticket:
         raise NotFoundError("Invalid resource: missing endpoints or ticket")
-    
-    data = json.loads(resource.endpoints[0].ticket.decode("utf-8"))
-    return data.to_pandas()
+
+    ticket_bytes = resource.endpoints[0].ticket
+    buf = pa.BufferReader(ticket_bytes)
+    reader = pa.ipc.open_stream(buf)
+    return reader.read_all().to_pandas()

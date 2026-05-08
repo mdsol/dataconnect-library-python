@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from uuid import UUID
 
 from dataconnect.models import Study
 
@@ -17,7 +18,7 @@ class DataConnectService(ABC):
     @abstractmethod
     def fetch_data(
         self,
-        dataset_uuid: str,
+        dataset_uuid: UUID,
         first_n_rows: int | None = None,
     ) -> pd.DataFrame: ...
 
