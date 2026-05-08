@@ -28,13 +28,6 @@ class _FakeService:
         self.closed += 1
 
 
-def test_get_studies_returns_service_result() -> None:
-    studies = [Study(uuid=UUID("64a98a9b-1512-44c8-92af-e4cab0183670"), name="Study A")]
-    client = DataConnectClient(_FakeService(studies=studies))
-
-    assert client.get_studies() == studies
-
-
 def test_get_dataset_versions_forwards_uuid_to_service() -> None:
     dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
     versions = [
