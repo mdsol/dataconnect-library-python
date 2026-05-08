@@ -15,3 +15,12 @@ class Study:
     uuid: UUID
     name: str
     environments: list[StudyEnvironment] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class DatasetVersion:
+    study_uuid: UUID
+    study_environment_uuid: UUID
+    dataset_uuid: UUID
+    dataset_name: str
+    dataset_version: str

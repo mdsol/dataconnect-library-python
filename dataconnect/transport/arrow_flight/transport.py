@@ -42,6 +42,7 @@ def _to_resource_info(info: flight.FlightInfo) -> ResourceInfo:
 # Maps service-layer action names to the flight_type value the Arrow Flight server expects.
 _ACTION_FLIGHT_TYPE: dict[str, str] = {
     "studies.list": "STUDIES",
+    "dataset_versions.list": "VERSIONS",
 }
 
 
