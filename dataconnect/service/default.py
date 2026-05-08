@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from dataconnect.exceptions import (
     AuthenticationError,
     AuthorizationError,
@@ -12,9 +14,10 @@ from dataconnect.exceptions import (
     ServerError,
     ValidationError,
 )
-from dataconnect.models import Study
+from dataconnect.models import DatasetVersion, Study
 from dataconnect.service.base import DataConnectService
-from dataconnect.service.mappers import resource_to_study
+from dataconnect.service.mappers import resource_to_dataset_version, resource_to_study
+from dataconnect.service.validators import validate_search_study_name
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import (
     TransportAuthenticationError,
@@ -29,6 +32,7 @@ from dataconnect.transport.models import ResourceQuery
 
 # Server action identifiers
 _ACTION_LIST_STUDIES = "studies.list"
+_ACTION_LIST_DATASET_VERSIONS = "dataset_versions.list"
 
 
 def _translate_error(ex: TransportError) -> DataConnectError:
@@ -58,9 +62,13 @@ class DefaultDataConnectService(DataConnectService):
 
     # DataConnectService
 
-    def get_studies(self) -> list[Study]:
+    def get_studies(self, search_study_name: str | None = None) -> list[Study]:
+
+        validate_search_study_name(search_study_name)
 
         request = ResourceQuery(action=_ACTION_LIST_STUDIES)
+        if search_study_name and search_study_name.strip() != "":
+            request = request.append_body({"search_study_name": search_study_name})
 
         try:
             resources = self._transport.list_resources(request)
@@ -69,8 +77,28 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             return [resource_to_study(r) for r in resources]
-        except (KeyError, TypeError, ValueError) as ex:
+        except (IndexError, KeyError, TypeError, ValueError) as ex:
             raise ValidationError(f"Unexpected studies response format: {ex}") from ex
+
+    def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]:
+        # Input validation: ensure callers pass a UUID
+        if not isinstance(dataset_uuid, UUID):
+            raise ValidationError("dataset_uuid must be a valid UUID")
+
+        if dataset_uuid.int == 0:
+            raise ValidationError("dataset_uuid must not be empty")
+
+        request = ResourceQuery(action=_ACTION_LIST_DATASET_VERSIONS).append_body({"dataset_uuid": str(dataset_uuid)})
+
+        try:
+            resources = self._transport.list_resources(request)
+        except TransportError as ex:
+            raise _translate_error(ex) from ex
+
+        try:
+            return [resource_to_dataset_version(r) for r in resources]
+        except (IndexError, KeyError, TypeError, ValueError) as ex:
+            raise ValidationError(f"Unexpected dataset versions response format: {ex}") from ex
 
     def close(self) -> None:
 

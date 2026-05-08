@@ -1,5 +1,3 @@
-from dataconnect import DataConnectClientfrom dataconnect import DataConnectClient
-
 # dataconnect-library-python
 
 Python SDK for the [Medidata DataConnect](https://github.com/mdsol/dataconnect-library-r) service.
@@ -8,8 +6,7 @@ Python SDK for the [Medidata DataConnect](https://github.com/mdsol/dataconnect-l
 
 ## Transport note
 
-The DataConnect service uses **Apache Arrow Flight** (gRPC binary protocol),
-**not** a plain REST/HTTP API.  `pyarrow.flight` is the primary transport
+The DataConnect service uses **Apache Arrow Flight** (gRPC binary protocol), and **not** a plain REST/HTTP API.  `pyarrow.flight` is the primary transport
 dependency.
 
 ---
@@ -38,8 +35,7 @@ with DataConnectClient.connect(
     token="your-bearer-token",
 ) as client:
 
-    studies = client.studies(search_study_name="ACME", page=1, page_size=10)
-    study = studies[0]
+    studies = client.get_studies(search_study_name="ACME")
 ```
 ## Development
 
