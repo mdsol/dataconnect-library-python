@@ -17,6 +17,7 @@ from dataconnect.exceptions import (
 from dataconnect.models import DatasetVersion, Study
 from dataconnect.service.base import DataConnectService
 from dataconnect.service.mappers import resource_to_dataset_version, resource_to_study
+from dataconnect.service.validators import validate_search_study_name
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import (
     TransportAuthenticationError,
@@ -61,9 +62,13 @@ class DefaultDataConnectService(DataConnectService):
 
     # DataConnectService
 
-    def get_studies(self) -> list[Study]:
+    def get_studies(self, search_study_name: str | None = None) -> list[Study]:
+
+        validate_search_study_name(search_study_name)
 
         request = ResourceQuery(action=_ACTION_LIST_STUDIES)
+        if search_study_name and search_study_name.strip() != "":
+            request = request.append_body({"search_study_name": search_study_name})
 
         try:
             resources = self._transport.list_resources(request)

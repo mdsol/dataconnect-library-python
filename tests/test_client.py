@@ -28,13 +28,6 @@ class _FakeService:
         self.closed += 1
 
 
-def test_get_studies_returns_service_result() -> None:
-    studies = [Study(uuid=UUID("64a98a9b-1512-44c8-92af-e4cab0183670"), name="Study A")]
-    client = DataConnectClient(_FakeService(studies=studies))
-
-    assert client.get_studies() == studies
-
-
 def test_get_dataset_versions_forwards_uuid_to_service() -> None:
     dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
     versions = [
@@ -109,3 +102,45 @@ def test_connect_uses_arrow_transport_and_default_service(monkeypatch: pytest.Mo
 def test_dummy_benchmark() -> None:
     # Dummy benchmark test to satisfy CI
     assert True
+
+
+class StubService:
+    def __init__(self) -> None:
+        self.search_study_name: str | None = None
+        self.was_closed = False
+
+    def get_studies(self, search_study_name: str | None = None) -> list[Study]:
+        self.search_study_name = search_study_name
+        return []
+
+    def close(self) -> None:
+        self.was_closed = True
+
+
+def test_get_studies_without_filter_delegates_to_service() -> None:
+    service = StubService()
+    client = DataConnectClient(service)
+
+    studies = client.get_studies()
+
+    assert studies == []
+    assert service.search_study_name is None
+
+
+def test_get_studies_with_filter_delegates_to_service() -> None:
+    service = StubService()
+    client = DataConnectClient(service)
+
+    studies = client.get_studies(search_study_name="cardio")
+
+    assert studies == []
+    assert service.search_study_name == "cardio"
+
+
+def test_close_delegates_to_service() -> None:
+    service = StubService()
+    client = DataConnectClient(service)
+
+    client.close()
+
+    assert service.was_closed

@@ -43,9 +43,9 @@ class DataConnectClient:
 
     # Public API
 
-    def get_studies(self) -> list[Study]:
+    def get_studies(self, search_study_name: str | None = None) -> list[Study]:
         """List the studies the client is authorized to access."""
-        return self._service.get_studies()
+        return self._service.get_studies(search_study_name=search_study_name)
 
     def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]:
         """List the dataset versions the client is authorized to access."""
