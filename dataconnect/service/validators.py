@@ -13,6 +13,3 @@ def validate_search_study_name(search_study_name: str | None) -> None:
 
     if not isinstance(search_study_name, str):
         raise ValidationError("search_study_name must be a string")
-
-    if not search_study_name.strip():
-        raise ValidationError("search_study_name must not be empty")
