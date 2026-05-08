@@ -7,9 +7,12 @@ technology-agnostic ``TransportError`` subtypes before propagating up.
 
 from __future__ import annotations
 
+import base64
 import json
+import platform
+import subprocess
 
-from pyarrow import flight
+import pyarrow.flight as flight
 
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import (
@@ -56,16 +59,51 @@ class ArrowFlightTransport(Transport):
         self._call_headers: list[tuple[bytes, bytes]] = []
 
         scheme = "grpc+tls" if use_tls else "grpc"
-        location = f"{scheme}://{host}:{port}"
+        uri = f"{scheme}://{host}:{port}"
 
         try:
-            tls_root_certs = None  # pending
-            self._client = flight.FlightClient(location, tls_root_certs=tls_root_certs)
+            self._client = self._get_client(uri, use_tls)
         except Exception as exc:
-            raise TransportConnectionError(f"Failed to connect to {location}: {exc}") from exc
+            raise TransportConnectionError(f"Failed to create FlightClient: {exc}") from exc
 
         if token:
             self._call_headers.append((b"authorization", f"Bearer {token}".encode()))
+
+    def _get_client(self, uri: str, use_tls: bool) -> flight.FlightClient:
+        is_windows = platform.system() == "Windows"
+
+        if use_tls and is_windows:
+            result = subprocess.run(
+                [
+                    "powershell.exe",
+                    "-Command",
+                    (
+                        "Get-ChildItem -Path Cert:\\LocalMachine\\Root | "
+                        "ForEach-Object { [System.Convert]::ToBase64String($_.RawData) }"
+                    ),
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            pem_parts = []
+            for b64 in result.stdout.splitlines():
+                b64 = b64.strip()
+                if not b64:
+                    continue
+                base64.b64decode(b64, validate=True)
+                lines = ["-----BEGIN CERTIFICATE-----"]
+                lines += [b64[i : i + 64] for i in range(0, len(b64), 64)]
+                lines.append("-----END CERTIFICATE-----")
+                pem_parts.append("\n".join(lines))
+
+            pem_certs = "\n".join(pem_parts).encode("utf-8")
+            client = flight.FlightClient(uri, tls_root_certs=pem_certs)
+        else:
+            client = flight.FlightClient(uri)
+
+        return client
 
     def _options(self) -> flight.FlightCallOptions:
         return flight.FlightCallOptions(headers=self._call_headers)
