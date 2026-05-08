@@ -8,8 +8,9 @@ the SDK where concrete implementation types are wired together.
 from __future__ import annotations
 
 from types import TracebackType
+from uuid import UUID
 
-from dataconnect.models import Study
+from dataconnect.models import DatasetVersion, Study
 from dataconnect.service import DataConnectService, DefaultDataConnectService
 
 _DEFAULT_HOST = "enodia-gateway.platform.imedidata.com"
@@ -45,6 +46,10 @@ class DataConnectClient:
     def get_studies(self, search_study_name: str | None = None) -> list[Study]:
         """List the studies the client is authorized to access."""
         return self._service.get_studies(search_study_name=search_study_name)
+
+    def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]:
+        """List the dataset versions the client is authorized to access."""
+        return self._service.get_dataset_versions(dataset_uuid)
 
     # Lifecycle
 

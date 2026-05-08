@@ -13,7 +13,7 @@ from dataconnect.exceptions import (
     ServerError,
     ValidationError,
 )
-from dataconnect.models import Study, StudyEnvironment
+from dataconnect.models import DatasetVersion, Study, StudyEnvironment
 
 __all__ = [
     # Client
@@ -21,6 +21,7 @@ __all__ = [
     # Domain models
     "Study",
     "StudyEnvironment",
+    "DatasetVersion",
     # Exceptions — catch these in user application code
     "DataConnectError",
     "ConnectionError",

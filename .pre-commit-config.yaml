@@ -12,7 +12,10 @@
 #   pre-commit autoupdate
 
 default_language_version:
-  python: python3.11
+  # Use the system 'python3' interpreter so pre-commit picks up the active
+  # Python in your PATH (or the project's virtualenv). This avoids failures
+  # when a specific patch-level interpreter like python3.11 is not installed.
+  python: python3
 
 repos:
   # ---------------------------------------------------------------------------
