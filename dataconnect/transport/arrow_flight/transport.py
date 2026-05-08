@@ -63,7 +63,7 @@ class ArrowFlightTransport(Transport):
         try:
             self._client = self._get_client(uri, use_tls)
         except Exception as exc:
-            raise TransportConnectionError(f"Failed to connect to {uri}: {exc}") from exc
+            raise TransportConnectionError(f"Failed to create FlightClient: {exc}") from exc
 
         if token:
             self._call_headers.append((b"authorization", f"Bearer {token}".encode()))
@@ -91,10 +91,9 @@ class ArrowFlightTransport(Transport):
                 b64 = b64.strip()
                 if not b64:
                     continue
-                raw = base64.b64decode(b64)
-                encoded = base64.b64encode(raw).decode("ascii")
+                base64.b64decode(b64, validate=True)
                 lines = ["-----BEGIN CERTIFICATE-----"]
-                lines += [encoded[i : i + 64] for i in range(0, len(encoded), 64)]
+                lines += [b64[i : i + 64] for i in range(0, len(b64), 64)]
                 lines.append("-----END CERTIFICATE-----")
                 pem_parts.append("\n".join(lines))
 
