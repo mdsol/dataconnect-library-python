@@ -65,7 +65,7 @@ class DefaultDataConnectService(DataConnectService):
 
         request = ResourceQuery(action=_ACTION_LIST_STUDIES)
         if search_study_name is not None:
-            request = request.append_body({"searchStudyName": search_study_name})
+            request = request.append_body({"search_study_name": search_study_name})
 
         try:
             resources = self._transport.list_resources(request)

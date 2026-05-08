@@ -53,7 +53,7 @@ def test_get_studies_with_search_name_sets_request_body() -> None:
     assert len(studies) == 1
     assert studies[0].name == "Cardio Study"
     assert transport.last_request is not None
-    assert transport.last_request.body == '{"searchStudyName":"Cardio"}'
+    assert transport.last_request.body == '{"search_study_name":"Cardio"}'
 
 
 def test_get_studies_rejects_empty_search_name() -> None:
