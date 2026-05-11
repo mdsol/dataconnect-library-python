@@ -18,7 +18,7 @@ from dataconnect.exceptions import (
 )
 from dataconnect.models import Study
 from dataconnect.service.base import DataConnectService
-from dataconnect.service.mappers import resource_to_fetched_data, resource_to_study
+from dataconnect.service.mappers import resource_to_study, resource_to_fetched_data
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import (
     TransportAuthenticationError,
@@ -87,25 +87,18 @@ class DefaultDataConnectService(DataConnectService):
 
         request = ResourceQuery(action=_ACTION_FETCH_TICKET).append_body(
             {
+                "study_env_uuid": None,
+                "dataset_name": None,
                 "dataset_uuid": str(dataset_uuid),
                 "limit": first_n_rows,
             }
         )
 
         try:
-            resources = self._transport.list_resources(request)
+            table = self._transport.do_get(request)
+            return resource_to_fetched_data(table)
         except TransportError as ex:
             raise _translate_error(ex) from ex
-
-        try:
-            frames = [resource_to_fetched_data(r) for r in resources]
-        except (IndexError, KeyError, TypeError, ValueError) as ex:
-            raise ValidationError(f"Unexpected data fetch response format: {ex}") from ex
-
-        if not frames:
-            return pd.DataFrame()
-
-        return pd.concat(frames, ignore_index=True)
 
     def close(self) -> None:
 

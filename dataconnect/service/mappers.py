@@ -15,7 +15,7 @@ import pyarrow as pa
 
 from dataconnect.exceptions import NotFoundError
 from dataconnect.models import Study, StudyEnvironment
-from dataconnect.transport.models import ResourceInfo
+from dataconnect.transport.models import ResourceInfo, DataTable
 
 
 def resource_to_study(resource: ResourceInfo) -> Study:
@@ -33,17 +33,11 @@ def resource_to_study(resource: ResourceInfo) -> Study:
     )
 
 
-def resource_to_fetched_data(resource: ResourceInfo) -> pd.DataFrame:
-    """Parse a transport-layer ``ResourceInfo`` into pandas DataFrame.
+def resource_to_fetched_data(table: DataTable) -> pd.DataFrame:
+    """Convert a transport-layer ``DataTable`` into a ``pandas.DataFrame``."""
 
-    The ticket bytes are expected to contain an Arrow IPC stream.  They are
-    read via ``pyarrow.ipc.open_stream`` and converted to a ``pd.DataFrame``.
-    """
+    ipc_buffer = pa.BufferReader(table.ipc_bytes)
+    reader = pa.ipc.open_stream(ipc_buffer)
+    table = reader.read_all()
 
-    if not resource or not resource.endpoints or not resource.endpoints[0].ticket:
-        raise NotFoundError("Invalid resource: missing endpoints or ticket")
-
-    ticket_bytes = resource.endpoints[0].ticket
-    buf = pa.BufferReader(ticket_bytes)
-    reader = pa.ipc.open_stream(buf)
-    return reader.read_all().to_pandas()
+    return pd.DataFrame(table.to_pandas())
