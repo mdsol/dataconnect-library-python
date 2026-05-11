@@ -10,6 +10,8 @@ from __future__ import annotations
 from types import TracebackType
 from uuid import UUID
 
+import pandas as pd
+
 from dataconnect.models import DatasetVersion, Study
 from dataconnect.service import DataConnectService, DefaultDataConnectService
 
@@ -50,6 +52,14 @@ class DataConnectClient:
     def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]:
         """List the dataset versions the client is authorized to access."""
         return self._service.get_dataset_versions(dataset_uuid)
+    
+    def fetch_data(
+        self,
+        dataset_uuid: UUID,
+        first_n_rows: int | None = None,
+    ) -> pd.DataFrame:
+        """Fetch data frames for a given dataset UUID."""
+        return self._service.fetch_data(dataset_uuid, first_n_rows)
 
     # Lifecycle
 

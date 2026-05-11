@@ -8,11 +8,13 @@ decoding) is isolated here.
 from __future__ import annotations
 
 import json
+import pandas as pd
+import pyarrow as pa
 from uuid import UUID
 
 from dataconnect.exceptions import NotFoundError
 from dataconnect.models import DatasetVersion, Study, StudyEnvironment
-from dataconnect.transport.models import ResourceInfo
+from dataconnect.transport.models import ResourceInfo, DataTable
 
 
 def resource_to_study(resource: ResourceInfo) -> Study:
@@ -45,3 +47,12 @@ def resource_to_dataset_version(resource: ResourceInfo) -> DatasetVersion:
         dataset_name=data["dataset_name"],
         dataset_version=data["dataset_version"],
     )
+
+def resource_to_fetched_data(table: DataTable) -> pd.DataFrame:
+    """Convert a transport-layer ``DataTable`` into a ``pandas.DataFrame``."""
+
+    ipc_buffer = pa.BufferReader(table.ipc_bytes)
+    reader = pa.ipc.open_stream(ipc_buffer)
+    table = reader.read_all()
+
+    return pd.DataFrame(table.to_pandas())

@@ -38,3 +38,14 @@ class ResourceInfo:
     endpoints: list[DataRef]
     total_records: int
     schema_bytes: bytes
+
+
+@dataclass(frozen=True)
+class DataTable:
+    """Technology-agnostic representation of a fetched data result.
+
+    ``schema_bytes`` holds the Arrow IPC-serialized schema.
+    ``ipc_bytes`` holds the full Arrow IPC stream (schema + all batches).
+    """
+    schema_bytes: bytes
+    ipc_bytes: bytes

@@ -7,6 +7,7 @@ from uuid import UUID
 
 from dataconnect.models import DatasetVersion, Study
 
+import pandas as pd
 
 class DataConnectService(ABC):
     """Abstract service interface — defines all operations available to the client."""
@@ -16,6 +17,13 @@ class DataConnectService(ABC):
 
     @abstractmethod
     def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]: ...
+
+    @abstractmethod
+    def fetch_data(
+        self,
+        dataset_uuid: UUID,
+        first_n_rows: int | None = None,
+    ) -> pd.DataFrame: ...
 
     @abstractmethod
     def close(self) -> None: ...

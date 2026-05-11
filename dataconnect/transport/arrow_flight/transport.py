@@ -13,6 +13,7 @@ import platform
 import subprocess
 
 import pyarrow.flight as flight
+import pyarrow as pa
 
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import (
@@ -21,7 +22,7 @@ from dataconnect.transport.errors import (
     TransportConnectionError,
     TransportStatusError,
 )
-from dataconnect.transport.models import DataRef, ResourceInfo, ResourceQuery
+from dataconnect.transport.models import DataRef, ResourceInfo, ResourceQuery, DataTable
 
 
 def _to_resource_info(info: flight.FlightInfo) -> ResourceInfo:
@@ -38,11 +39,30 @@ def _to_resource_info(info: flight.FlightInfo) -> ResourceInfo:
         total_records=info.total_records,
     )
 
+def _to_bytes(table: pa.Table) -> DataTable:
+    """Serialize a ``pa.Table`` to a technology-agnostic ``DataTable``.
+
+    Each record batch is serialized individually as Arrow IPC bytes.
+    The schema is serialized separately so it can be recovered without
+    the data batches.
+    """
+    schema_bytes = table.schema.serialize().to_pybytes()
+
+    sink = pa.BufferOutputStream()
+    writer = pa.ipc.new_stream(sink, table.schema)
+    for batch in table.to_batches():
+        writer.write_batch(batch)
+    writer.close()
+    ipc_bytes = sink.getvalue().to_pybytes()
+
+    return DataTable(schema_bytes=schema_bytes, ipc_bytes=ipc_bytes)
+
 
 # Maps service-layer action names to the flight_type value the Arrow Flight server expects.
 _ACTION_FLIGHT_TYPE: dict[str, str] = {
     "studies.list": "STUDIES",
     "dataset_versions.list": "VERSIONS",
+    "data.fetch_ticket": "DATA_FETCH_TICKET",
 }
 
 
@@ -139,6 +159,47 @@ class ArrowFlightTransport(Transport):
             raise TransportConnectionError(str(ex)) from ex
         except Exception as ex:
             raise TransportConnectionError(f"Unexpected error during list_resources: {ex}") from ex
+
+    def do_get(self, request: ResourceQuery) -> DataTable:
+        """Call FlightClient.do_get and read all chunks into a single pa.Table."""
+
+        flight_type = _ACTION_FLIGHT_TYPE.get(request.action)
+
+        if flight_type is None:
+            raise TransportStatusError(
+                f"Unknown action: {request.action!r}", status_code=3, grpc_status="INVALID_ARGUMENT"
+            )
+
+        body = json.loads(request.body) if request.body else {}
+        ticket_bytes = json.dumps(body, separators=(",", ":")).encode("utf-8")
+        ticket = flight.Ticket(ticket_bytes)
+
+        try:
+            table = self._client.do_get(ticket, self._options())
+            batches: list[pa.RecordBatch] = []
+            while True:
+                try:
+                    chunk, _metadata = table.read_chunk()
+                    batches.append(chunk)
+                except StopIteration:
+                    break
+                except flight.FlightError as ex:
+                    raise TransportConnectionError(f"Error reading stream: {ex}") from ex
+                
+            return _to_bytes(pa.Table.from_batches(batches))  # validate schema + batches can be serialized
+
+        except flight.FlightUnauthenticatedError as ex:
+            raise TransportAuthenticationError(str(ex)) from ex
+        except flight.FlightUnauthorizedError as ex:
+            raise TransportAuthorizationError(str(ex)) from ex
+        except flight.FlightUnavailableError as ex:
+            raise TransportConnectionError(str(ex)) from ex
+        except flight.FlightInternalError as ex:
+            raise TransportStatusError(str(ex), status_code=13, grpc_status="INTERNAL") from ex
+        except flight.FlightError as ex:
+            raise TransportConnectionError(str(ex)) from ex
+        except Exception as ex:
+            raise TransportConnectionError(f"Unexpected error during do_get: {ex}") from ex
 
     def close(self) -> None:
         self._client.close()
