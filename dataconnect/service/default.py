@@ -18,7 +18,7 @@ from dataconnect.exceptions import (
 )
 from dataconnect.models import DatasetVersion, Study
 from dataconnect.service.base import DataConnectService
-from dataconnect.service.mappers import resource_to_dataset_version, resource_to_study, resource_to_fetched_data
+from dataconnect.service.mappers import resource_to_dataset_version, resource_to_fetched_data, resource_to_study
 from dataconnect.service.validators import validate_search_study_name
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import (

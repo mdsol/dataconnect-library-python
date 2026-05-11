@@ -47,5 +47,6 @@ class DataTable:
     ``schema_bytes`` holds the Arrow IPC-serialized schema.
     ``ipc_bytes`` holds the full Arrow IPC stream (schema + all batches).
     """
+
     schema_bytes: bytes
     ipc_bytes: bytes

@@ -12,8 +12,8 @@ import json
 import platform
 import subprocess
 
-import pyarrow.flight as flight
 import pyarrow as pa
+import pyarrow.flight as flight
 
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import (
@@ -22,7 +22,7 @@ from dataconnect.transport.errors import (
     TransportConnectionError,
     TransportStatusError,
 )
-from dataconnect.transport.models import DataRef, ResourceInfo, ResourceQuery, DataTable
+from dataconnect.transport.models import DataRef, DataTable, ResourceInfo, ResourceQuery
 
 
 def _to_resource_info(info: flight.FlightInfo) -> ResourceInfo:
@@ -38,6 +38,7 @@ def _to_resource_info(info: flight.FlightInfo) -> ResourceInfo:
         schema_bytes=schema_bytes,
         total_records=info.total_records,
     )
+
 
 def _to_bytes(table: pa.Table) -> DataTable:
     """Serialize a ``pa.Table`` to a technology-agnostic ``DataTable``.
@@ -185,7 +186,7 @@ class ArrowFlightTransport(Transport):
                     break
                 except flight.FlightError as ex:
                     raise TransportConnectionError(f"Error reading stream: {ex}") from ex
-                
+
             return _to_bytes(pa.Table.from_batches(batches, schema=table.schema))
 
         except flight.FlightUnauthenticatedError as ex:

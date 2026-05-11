@@ -9,6 +9,7 @@ import pandas as pd
 
 from dataconnect.models import DatasetVersion, Study
 
+
 class DataConnectService(ABC):
     """Abstract service interface — defines all operations available to the client."""
 
