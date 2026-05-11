@@ -5,7 +5,6 @@ from types import ModuleType
 from uuid import UUID
 
 import pandas as pd
-import pyarrow as pa
 import pytest
 
 from dataconnect.client import DataConnectClient
