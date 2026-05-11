@@ -25,9 +25,9 @@ class Transport(ABC):
 
     @abstractmethod
     def do_get(self, request: ResourceQuery) -> DataTable:
-        """Retrieve data for a single endpoint ticket.
+        """Fetch the full dataset described by ``request``.
 
-        Reads all chunks from the server stream and returns a single
+        All record batches from the stream are read and returned as a single
         ``DataTable`` containing the complete result set.
         """
 

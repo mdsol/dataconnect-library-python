@@ -52,7 +52,7 @@ class DataConnectClient:
     def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]:
         """List the dataset versions the client is authorized to access."""
         return self._service.get_dataset_versions(dataset_uuid)
-    
+
     def fetch_data(
         self,
         dataset_uuid: UUID,

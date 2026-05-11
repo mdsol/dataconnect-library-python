@@ -171,7 +171,7 @@ class ArrowFlightTransport(Transport):
             )
 
         body = json.loads(request.body) if request.body else {}
-        ticket_bytes = json.dumps(body, separators=(",", ":")).encode("utf-8")
+        ticket_bytes = json.dumps({**body, "flight_type": flight_type}, separators=(",", ":")).encode("utf-8")
         ticket = flight.Ticket(ticket_bytes)
 
         try:
@@ -186,7 +186,7 @@ class ArrowFlightTransport(Transport):
                 except flight.FlightError as ex:
                     raise TransportConnectionError(f"Error reading stream: {ex}") from ex
                 
-            return _to_bytes(pa.Table.from_batches(batches))  # validate schema + batches can be serialized
+            return _to_bytes(pa.Table.from_batches(batches, schema=table.schema))
 
         except flight.FlightUnauthenticatedError as ex:
             raise TransportAuthenticationError(str(ex)) from ex

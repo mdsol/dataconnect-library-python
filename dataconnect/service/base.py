@@ -5,9 +5,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from dataconnect.models import DatasetVersion, Study
-
 import pandas as pd
+
+from dataconnect.models import DatasetVersion, Study
 
 class DataConnectService(ABC):
     """Abstract service interface — defines all operations available to the client."""
