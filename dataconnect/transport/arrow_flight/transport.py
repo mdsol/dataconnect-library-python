@@ -62,6 +62,7 @@ def _to_bytes(table: pa.Table) -> DataTable:
 # Maps service-layer action names to the flight_type value the Arrow Flight server expects.
 _ACTION_FLIGHT_TYPE: dict[str, str] = {
     "studies.list": "STUDIES",
+    "datasets.list": "DATASETS",
     "dataset_versions.list": "VERSIONS",
     "data.fetch_ticket": "DATA_FETCH_TICKET",
 }

@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from dataconnect.client import DataConnectClient
-from dataconnect.models import DatasetVersion, Study
+from dataconnect.models import Dataset, DatasetVersion, Study
 
 
 def _make_dataframe() -> pd.DataFrame:
@@ -30,6 +30,14 @@ class _FakeService:
         self.last_dataset_uuid: UUID | None = None
         self.last_fetch_data_uuid: UUID | None = None
         self.last_first_n_rows: int | None = None
+        datasets: list[Dataset] | None = None,
+    ) -> None:
+        self._studies = studies or []
+        self._versions = versions or []
+        self._datasets = datasets or []
+        self.closed = 0
+        self.last_dataset_uuid: UUID | None = None
+        self.last_get_datasets_kwargs: dict[str, object] | None = None
 
     def get_studies(self) -> list[Study]:
         return self._studies
@@ -42,6 +50,9 @@ class _FakeService:
         self.last_fetch_data_uuid = dataset_uuid
         self.last_first_n_rows = first_n_rows
         return self._fetch_data_result
+    def get_datasets(self, **kwargs: object) -> list[Dataset]:
+        self.last_get_datasets_kwargs = kwargs
+        return self._datasets
 
     def close(self) -> None:
         self.closed += 1
@@ -188,3 +199,46 @@ def test_close_delegates_to_service() -> None:
     client.close()
 
     assert service.was_closed
+
+
+def test_get_datasets_forwards_arguments_to_service() -> None:
+    datasets = [
+        Dataset(
+            dataset_uuid="073410b6-79be-3e7d-ae37-92f6e054013e",
+            study_uuid="64a98a9b-1512-44c8-92af-e4cab0183670",
+            study_env_uuid="4d1fd10d-5b57-4fd8-a436-f4ec59ce2e4a",
+            dataset_name="labs",
+        )
+    ]
+    service = _FakeService(datasets=datasets)
+    client = DataConnectClient(service)
+
+    result = client.get_datasets(
+        study_environment_uuid=UUID("4d1fd10d-5b57-4fd8-a436-f4ec59ce2e4a"),
+        search_dataset_name="labs",
+        page=2,
+        page_size=10,
+    )
+
+    assert result == datasets
+    assert service.last_get_datasets_kwargs == {
+        "study_environment_uuid": UUID("4d1fd10d-5b57-4fd8-a436-f4ec59ce2e4a"),
+        "search_dataset_name": "labs",
+        "page": 2,
+        "page_size": 10,
+    }
+
+
+def test_get_datasets_uses_defaults() -> None:
+    service = _FakeService()
+    client = DataConnectClient(service)
+
+    result = client.get_datasets(study_environment_uuid=UUID("11111111-1111-1111-1111-111111111111"))
+
+    assert result == []
+    assert service.last_get_datasets_kwargs == {
+        "study_environment_uuid": UUID("11111111-1111-1111-1111-111111111111"),
+        "search_dataset_name": "",
+        "page": 1,
+        "page_size": 50,
+    }

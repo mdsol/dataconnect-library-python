@@ -16,9 +16,10 @@ from dataconnect.exceptions import (
     ServerError,
     ValidationError,
 )
-from dataconnect.models import DatasetVersion, Study
+from dataconnect.models import Dataset, DatasetVersion, Study
 from dataconnect.service.base import DataConnectService
 from dataconnect.service.mappers import resource_to_dataset_version, resource_to_fetched_data, resource_to_study
+from dataconnect.service.mappers import resource_to_dataset, resource_to_dataset_version, resource_to_study
 from dataconnect.service.validators import validate_search_study_name
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import (
@@ -34,6 +35,7 @@ from dataconnect.transport.models import ResourceQuery
 
 # Server action identifiers
 _ACTION_LIST_STUDIES = "studies.list"
+_ACTION_LIST_DATASETS = "datasets.list"
 _ACTION_LIST_DATASET_VERSIONS = "dataset_versions.list"
 _ACTION_FETCH_TICKET = "data.fetch_ticket"
 
@@ -120,6 +122,36 @@ class DefaultDataConnectService(DataConnectService):
                 "dataset_name": None,
                 "dataset_uuid": str(dataset_uuid),
                 "limit": first_n_rows,
+    def get_datasets(
+        self,
+        study_environment_uuid: UUID,
+        search_dataset_name: str = "",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> list[Dataset]:
+        """List datasets for a study environment.
+
+        Args:
+            study_environment_uuid: UUID of the study environment (required).
+            search_dataset_name: Full or partial dataset name filter.
+            page: Page number for paginated results.
+            page_size: Number of results per page.
+
+        Returns:
+            A list of :class:`Dataset` items matching the criteria.
+        """
+        if not isinstance(study_environment_uuid, UUID):
+            raise ValidationError("study_environment_uuid must be a valid UUID")
+
+        if study_environment_uuid.int == 0:
+            raise ValidationError("study_environment_uuid must not be empty")
+
+        request = ResourceQuery(action=_ACTION_LIST_DATASETS).append_body(
+            {
+                "study_environment_uuid": str(study_environment_uuid),
+                "search_dataset_name": search_dataset_name,
+                "page": page,
+                "page_size": page_size,
             }
         )
 
@@ -128,6 +160,15 @@ class DefaultDataConnectService(DataConnectService):
             return resource_to_fetched_data(table)
         except TransportError as ex:
             raise _translate_error(ex) from ex
+
+            resources = self._transport.list_resources(request)
+        except TransportError as ex:
+            raise _translate_error(ex) from ex
+
+        try:
+            return [resource_to_dataset(r) for r in resources]
+        except (IndexError, KeyError, TypeError, ValueError) as ex:
+            raise ValidationError(f"Unexpected datasets response format: {ex}") from ex
 
     def close(self) -> None:
 

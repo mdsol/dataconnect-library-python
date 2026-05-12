@@ -16,6 +16,8 @@ import pyarrow as pa
 from dataconnect.exceptions import NotFoundError
 from dataconnect.models import DatasetVersion, Study, StudyEnvironment
 from dataconnect.transport.models import DataTable, ResourceInfo
+from dataconnect.models import Dataset, DatasetVersion, Study, StudyEnvironment
+from dataconnect.transport.models import ResourceInfo
 
 
 def resource_to_study(resource: ResourceInfo) -> Study:
@@ -56,3 +58,17 @@ def resource_to_fetched_data(table: DataTable) -> pd.DataFrame:
     ipc_buffer = pa.BufferReader(table.ipc_bytes)
     with pa.ipc.open_stream(ipc_buffer) as reader:
         return reader.read_all().to_pandas()
+def resource_to_dataset(resource: ResourceInfo) -> Dataset:
+    """Parse a transport-layer ``ResourceInfo`` into a ``Dataset`` domain object."""
+
+    if not resource or not resource.endpoints or not resource.endpoints[0].ticket:
+        raise NotFoundError("Invalid resource: missing endpoints or ticket")
+
+    data = json.loads(resource.endpoints[0].ticket.decode("utf-8"))
+
+    return Dataset(
+        dataset_uuid=data.get("dataset_uuid", ""),
+        study_uuid=data.get("study_uuid", ""),
+        study_env_uuid=data.get("study_env_uuid", ""),
+        dataset_name=data.get("dataset_name", ""),
+    )

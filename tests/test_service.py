@@ -16,7 +16,8 @@ from dataconnect.exceptions import (
     ServerError,
     ValidationError,
 )
-from dataconnect.models import DatasetVersion
+from dataconnect.exceptions import ConnectionError, ValidationError
+from dataconnect.models import Dataset, DatasetVersion
 from dataconnect.service.default import DefaultDataConnectService
 from dataconnect.transport.errors import (
     TransportAuthenticationError,
@@ -347,3 +348,85 @@ def test_fetch_data_translates_status_error() -> None:
 
     with pytest.raises(ServerError, match="internal"):
         service.fetch_data(dataset_uuid)
+# --- get_datasets tests ---
+
+
+def test_get_datasets_returns_mapped_models_and_builds_request() -> None:
+    payload = {
+        "dataset_uuid": "073410b6-79be-3e7d-ae37-92f6e054013e",
+        "study_uuid": "64a98a9b-1512-44c8-92af-e4cab0183670",
+        "study_env_uuid": "4d1fd10d-5b57-4fd8-a436-f4ec59ce2e4a",
+        "dataset_name": "labs",
+    }
+    transport = _FakeTransport(resources=[_resource_with_ticket_json(payload)])
+    service = DefaultDataConnectService(transport)
+
+    result = service.get_datasets(study_environment_uuid=UUID("4d1fd10d-5b57-4fd8-a436-f4ec59ce2e4a"))
+
+    assert result == [
+        Dataset(
+            dataset_uuid="073410b6-79be-3e7d-ae37-92f6e054013e",
+            study_uuid="64a98a9b-1512-44c8-92af-e4cab0183670",
+            study_env_uuid="4d1fd10d-5b57-4fd8-a436-f4ec59ce2e4a",
+            dataset_name="labs",
+        )
+    ]
+    assert transport.last_request is not None
+    assert transport.last_request.action == "datasets.list"
+    body = json.loads(transport.last_request.body)
+    assert body["study_environment_uuid"] == "4d1fd10d-5b57-4fd8-a436-f4ec59ce2e4a"
+    assert body["page"] == 1
+    assert body["page_size"] == 50
+
+
+def test_get_datasets_passes_all_parameters_in_request_body() -> None:
+    transport = _FakeTransport(resources=[])
+    service = DefaultDataConnectService(transport)
+
+    service.get_datasets(
+        study_environment_uuid=UUID("11111111-1111-1111-1111-111111111111"),
+        search_dataset_name="vitals",
+        page=3,
+        page_size=25,
+    )
+
+    assert transport.last_request is not None
+    body = json.loads(transport.last_request.body)
+    assert body == {
+        "study_environment_uuid": "11111111-1111-1111-1111-111111111111",
+        "search_dataset_name": "vitals",
+        "page": 3,
+        "page_size": 25,
+    }
+
+
+def test_get_datasets_translates_transport_errors() -> None:
+    transport = _FakeTransport(error=TransportConnectionError("cannot connect"))
+    service = DefaultDataConnectService(transport)
+
+    with pytest.raises(ConnectionError, match="cannot connect"):
+        service.get_datasets(study_environment_uuid=UUID("11111111-1111-1111-1111-111111111111"))
+
+
+def test_get_datasets_returns_empty_list_when_no_resources() -> None:
+    transport = _FakeTransport(resources=[])
+    service = DefaultDataConnectService(transport)
+
+    result = service.get_datasets(study_environment_uuid=UUID("11111111-1111-1111-1111-111111111111"))
+
+    assert result == []
+
+
+def test_get_datasets_raises_validation_error_on_bad_payload() -> None:
+    # Provide invalid JSON in the ticket to trigger a mapping error
+    bad_resource = ResourceInfo(
+        descriptor=b"",
+        endpoints=[DataRef(ticket=b"not-valid-json")],
+        total_records=1,
+        schema_bytes=b"",
+    )
+    transport = _FakeTransport(resources=[bad_resource])
+    service = DefaultDataConnectService(transport)
+
+    with pytest.raises(ValidationError, match="Unexpected datasets response format"):
+        service.get_datasets(study_environment_uuid=UUID("11111111-1111-1111-1111-111111111111"))

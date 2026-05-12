@@ -13,6 +13,7 @@ from uuid import UUID
 import pandas as pd
 
 from dataconnect.models import DatasetVersion, Study
+from dataconnect.models import Dataset, DatasetVersion, Study
 from dataconnect.service import DataConnectService, DefaultDataConnectService
 
 _DEFAULT_HOST = "enodia-gateway.platform.imedidata.com"
@@ -60,6 +61,30 @@ class DataConnectClient:
     ) -> pd.DataFrame:
         """Fetch data frames for a given dataset UUID."""
         return self._service.fetch_data(dataset_uuid, first_n_rows)
+    def get_datasets(
+        self,
+        study_environment_uuid: UUID,
+        search_dataset_name: str = "",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> list[Dataset]:
+        """List datasets for a study environment.
+
+        Args:
+            study_environment_uuid: UUID of the study environment (required).
+            search_dataset_name: Full or partial dataset name filter.
+            page: Page number for paginated results.
+            page_size: Number of results per page.
+
+        Returns:
+            A list of :class:`Dataset` items matching the criteria.
+        """
+        return self._service.get_datasets(
+            study_environment_uuid=study_environment_uuid,
+            search_dataset_name=search_dataset_name,
+            page=page,
+            page_size=page_size,
+        )
 
     # Lifecycle
 
