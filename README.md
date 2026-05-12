@@ -38,7 +38,8 @@ with DataConnectClient.connect(
 
     studies = client.get_studies(search_study_name="ACME")
 
-    datasets = client.get_datasets(study_environment_uuid=UUID("cec9f2a7-07ba-4fa8-bfcf-34fbc5d56793"))
+    pagination = client.get_datasets(study_environment_uuid=UUID("cec9f2a7-07ba-4fa8-bfcf-34fbc5d56793"))
+    datasets = pagination.items
 
 ```
 ## Development
