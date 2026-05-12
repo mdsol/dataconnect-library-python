@@ -6,10 +6,8 @@ from dataconnect.client import DataConnectClient
 from dataconnect.exceptions import (
     AuthenticationError,
     AuthorizationError,
-    ConnectionError,
     DataConnectError,
     NotFoundError,
-    QueryError,
     ServerError,
     ValidationError,
 )
@@ -24,11 +22,9 @@ __all__ = [
     "DatasetVersion",
     # Exceptions — catch these in user application code
     "DataConnectError",
-    "ConnectionError",
     "AuthenticationError",
     "AuthorizationError",
     "NotFoundError",
-    "QueryError",
     "ServerError",
     "ValidationError",
 ]

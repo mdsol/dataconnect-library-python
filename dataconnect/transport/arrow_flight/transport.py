@@ -11,16 +11,13 @@ import base64
 import json
 import platform
 import subprocess
+from datetime import UTC, datetime
 
 import pyarrow.flight as flight
 
+from dataconnect.transport.arrow_flight.error_handler import parse_dataconnect_error
 from dataconnect.transport.base import Transport
-from dataconnect.transport.errors import (
-    TransportAuthenticationError,
-    TransportAuthorizationError,
-    TransportConnectionError,
-    TransportStatusError,
-)
+from dataconnect.transport.errors import TransportValidationError
 from dataconnect.transport.models import DataRef, ResourceInfo, ResourceQuery
 
 
@@ -57,6 +54,14 @@ class ArrowFlightTransport(Transport):
         use_tls: bool,
         token: str = "",
     ) -> None:
+        """Create a new Arrow Flight transport.
+
+        Args:
+            host: Hostname or IP address of the Arrow Flight server.
+            port: Port number to connect to.
+            use_tls: Whether to use TLS (``grpc+tls``) for the connection.
+            token: Optional Bearer token appended to every request header.
+        """
         self._call_headers: list[tuple[bytes, bytes]] = []
 
         scheme = "grpc+tls" if use_tls else "grpc"
@@ -65,12 +70,19 @@ class ArrowFlightTransport(Transport):
         try:
             self._client = self._get_client(uri, use_tls)
         except Exception as exc:
-            raise TransportConnectionError(f"Failed to create FlightClient: {exc}") from exc
+            raise parse_dataconnect_error(exc) from exc
 
         if token:
             self._call_headers.append((b"authorization", f"Bearer {token}".encode()))
 
     def _get_client(self, uri: str, use_tls: bool) -> flight.FlightClient:
+        """Construct a :class:`flight.FlightClient` for the given URI.
+
+        On Windows with TLS enabled, system root certificates are read from
+        the Windows certificate store (``Cert:\\LocalMachine\\Root``) via
+        PowerShell and passed as ``tls_root_certs`` to work around pyarrow's
+        lack of native Windows certificate store support.
+        """
         is_windows = platform.system() == "Windows"
 
         if use_tls and is_windows:
@@ -107,6 +119,7 @@ class ArrowFlightTransport(Transport):
         return client
 
     def _options(self) -> flight.FlightCallOptions:
+        """Return call options containing the configured request headers."""
         return flight.FlightCallOptions(headers=self._call_headers)
 
     # Transport
@@ -117,8 +130,10 @@ class ArrowFlightTransport(Transport):
         flight_type = _ACTION_FLIGHT_TYPE.get(request.action)
 
         if flight_type is None:
-            raise TransportStatusError(
-                f"Unknown action: {request.action!r}", status_code=3, grpc_status="INVALID_ARGUMENT"
+            raise TransportValidationError(
+                error_code="VAL_001",
+                message=f"Unsupported action: {request.action}",
+                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             )
 
         body = json.loads(request.body) if request.body else {}
@@ -128,18 +143,8 @@ class ArrowFlightTransport(Transport):
             raw_flights = self._client.list_flights(criteria, self._options())
             return [_to_resource_info(f) for f in raw_flights]
 
-        except flight.FlightUnauthenticatedError as ex:
-            raise TransportAuthenticationError(str(ex)) from ex
-        except flight.FlightUnauthorizedError as ex:
-            raise TransportAuthorizationError(str(ex)) from ex
-        except flight.FlightUnavailableError as ex:
-            raise TransportConnectionError(str(ex)) from ex
-        except flight.FlightInternalError as ex:
-            raise TransportStatusError(str(ex), status_code=13, grpc_status="INTERNAL") from ex
-        except flight.FlightError as ex:
-            raise TransportConnectionError(str(ex)) from ex
         except Exception as ex:
-            raise TransportConnectionError(f"Unexpected error during list_resources: {ex}") from ex
+            raise parse_dataconnect_error(ex) from ex
 
     def close(self) -> None:
         self._client.close()
