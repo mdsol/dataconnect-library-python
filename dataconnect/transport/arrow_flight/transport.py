@@ -13,12 +13,13 @@ import platform
 import subprocess
 from datetime import UTC, datetime
 
+import pyarrow as pa
 import pyarrow.flight as flight
 
 from dataconnect.transport.arrow_flight.error_handler import parse_dataconnect_error
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import TransportValidationError
-from dataconnect.transport.models import DataRef, ResourceInfo, ResourceQuery
+from dataconnect.transport.models import DataRef, DataTable, ResourceInfo, ResourceQuery
 
 
 def _to_resource_info(info: flight.FlightInfo) -> ResourceInfo:
@@ -36,11 +37,31 @@ def _to_resource_info(info: flight.FlightInfo) -> ResourceInfo:
     )
 
 
+def _to_bytes(table: pa.Table) -> DataTable:
+    """Serialize a ``pa.Table`` to a technology-agnostic ``DataTable``.
+
+    Each record batch is serialized individually as Arrow IPC bytes.
+    The schema is serialized separately so it can be recovered without
+    the data batches.
+    """
+    schema_bytes = table.schema.serialize().to_pybytes()
+
+    sink = pa.BufferOutputStream()
+    writer = pa.ipc.new_stream(sink, table.schema)
+    for batch in table.to_batches():
+        writer.write_batch(batch)
+    writer.close()
+    ipc_bytes = sink.getvalue().to_pybytes()
+
+    return DataTable(schema_bytes=schema_bytes, ipc_bytes=ipc_bytes)
+
+
 # Maps service-layer action names to the flight_type value the Arrow Flight server expects.
 _ACTION_FLIGHT_TYPE: dict[str, str] = {
     "studies.list": "STUDIES",
     "datasets.list": "DATASETS",
     "dataset_versions.list": "VERSIONS",
+    "data.fetch_ticket": "DATA_FETCH_TICKET",
 }
 
 
@@ -142,6 +163,39 @@ class ArrowFlightTransport(Transport):
         try:
             raw_flights = self._client.list_flights(criteria, self._options())
             return [_to_resource_info(f) for f in raw_flights]
+
+        except Exception as ex:
+            raise parse_dataconnect_error(ex) from ex
+
+    def do_get(self, request: ResourceQuery) -> DataTable:
+        """Call FlightClient.do_get and read all chunks into a single pa.Table."""
+
+        flight_type = _ACTION_FLIGHT_TYPE.get(request.action)
+
+        if flight_type is None:
+            raise TransportValidationError(
+                error_code="VAL_001",
+                message=f"Unsupported action: {request.action}",
+                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            )
+
+        body = json.loads(request.body) if request.body else {}
+        ticket_bytes = json.dumps({**body, "flight_type": flight_type}, separators=(",", ":")).encode("utf-8")
+        ticket = flight.Ticket(ticket_bytes)
+
+        try:
+            table = self._client.do_get(ticket, self._options())
+            batches: list[pa.RecordBatch] = []
+            while True:
+                try:
+                    chunk, _metadata = table.read_chunk()
+                    batches.append(chunk)
+                except StopIteration:
+                    break
+                except flight.FlightError as ex:
+                    raise parse_dataconnect_error(ex) from ex
+
+            return _to_bytes(pa.Table.from_batches(batches, schema=table.schema))
 
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex

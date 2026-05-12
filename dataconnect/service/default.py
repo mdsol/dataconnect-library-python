@@ -5,11 +5,18 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
+import pandas as pd
+
 from dataconnect.exceptions import ValidationError
 from dataconnect.models import Dataset, DatasetVersion, Study
 from dataconnect.service.base import DataConnectService
 from dataconnect.service.error_handler import translate_error
-from dataconnect.service.mappers import resource_to_dataset, resource_to_dataset_version, resource_to_study
+from dataconnect.service.mappers import (
+    resource_to_dataset,
+    resource_to_dataset_version,
+    resource_to_fetched_data,
+    resource_to_study,
+)
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import TransportError
 from dataconnect.transport.models import ResourceQuery
@@ -18,6 +25,7 @@ from dataconnect.transport.models import ResourceQuery
 _ACTION_LIST_STUDIES = "studies.list"
 _ACTION_LIST_DATASETS = "datasets.list"
 _ACTION_LIST_DATASET_VERSIONS = "dataset_versions.list"
+_ACTION_FETCH_TICKET = "data.fetch_ticket"
 
 
 class DefaultDataConnectService(DataConnectService):
@@ -82,6 +90,32 @@ class DefaultDataConnectService(DataConnectService):
             resources = self._transport.list_resources(request)
             return [resource_to_dataset_version(r) for r in resources]
         except Exception as ex:
+            raise translate_error(ex) from ex
+
+    def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None) -> pd.DataFrame:
+
+        if not dataset_uuid or not str(dataset_uuid).strip():
+            raise ValueError("dataset_uuid must be provided.")
+
+        if dataset_uuid.int == 0:
+            raise ValueError("dataset_uuid must not be an empty UUID.")
+
+        if first_n_rows is not None and (not isinstance(first_n_rows, int) or first_n_rows <= 0):
+            raise ValueError("first_n_rows must be a positive integer when provided.")
+
+        request = ResourceQuery(action=_ACTION_FETCH_TICKET).append_body(
+            {
+                "study_env_uuid": None,
+                "dataset_name": None,
+                "dataset_uuid": str(dataset_uuid),
+                "limit": first_n_rows,
+            }
+        )
+
+        try:
+            table = self._transport.do_get(request)
+            return resource_to_fetched_data(table)
+        except TransportError as ex:
             raise translate_error(ex) from ex
 
     def get_datasets(
