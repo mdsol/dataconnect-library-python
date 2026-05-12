@@ -108,7 +108,10 @@ class DefaultDataConnectService(DataConnectService):
         if not dataset_uuid or not str(dataset_uuid).strip():
             raise ValueError("dataset_uuid must be provided.")
 
-        if first_n_rows is not None and first_n_rows <= 0:
+        if dataset_uuid.int == 0:
+            raise ValueError("dataset_uuid must not be an empty UUID.")
+
+        if first_n_rows is not None and (not isinstance(first_n_rows, int) or first_n_rows <= 0):
             raise ValueError("first_n_rows must be a positive integer when provided.")
 
         request = ResourceQuery(action=_ACTION_FETCH_TICKET).append_body(

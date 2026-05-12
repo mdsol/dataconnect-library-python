@@ -267,12 +267,29 @@ def test_fetch_data_raises_value_error_on_negative_first_n_rows() -> None:
         service.fetch_data(dataset_uuid, first_n_rows=-5)
 
 
+def test_fetch_data_raises_value_error_on_non_int_first_n_rows() -> None:
+    dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
+    transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}))
+    service = DefaultDataConnectService(transport)
+
+    with pytest.raises(ValueError, match="first_n_rows must be a positive integer"):
+        service.fetch_data(dataset_uuid, first_n_rows="abc")  # type: ignore[arg-type]
+
+
 def test_fetch_data_raises_value_error_on_none_uuid() -> None:
     transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}))
     service = DefaultDataConnectService(transport)
 
     with pytest.raises((ValueError, TypeError)):
         service.fetch_data(None)  # type: ignore[arg-type]
+
+
+def test_fetch_data_raises_value_error_on_empty_uuid() -> None:
+    transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}))
+    service = DefaultDataConnectService(transport)
+
+    with pytest.raises(ValueError, match="must not be an empty UUID"):
+        service.fetch_data(UUID(int=0))
 
 
 # Transport-error translation tests
