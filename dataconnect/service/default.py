@@ -2,39 +2,23 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.exceptions import (
-    AuthenticationError,
-    AuthorizationError,
-    ConnectionError,
-    DataConnectError,
-    NotFoundError,
-    QueryError,
-    ServerError,
-    ValidationError,
-)
+from dataconnect.exceptions import ValidationError
 from dataconnect.models import Dataset, DatasetVersion, Study
 from dataconnect.service.base import DataConnectService
+from dataconnect.service.error_handler import translate_error
 from dataconnect.service.mappers import (
     resource_to_dataset,
     resource_to_dataset_version,
     resource_to_fetched_data,
     resource_to_study,
 )
-from dataconnect.service.validators import validate_search_study_name
 from dataconnect.transport.base import Transport
-from dataconnect.transport.errors import (
-    TransportAuthenticationError,
-    TransportAuthorizationError,
-    TransportConnectionError,
-    TransportError,
-    TransportIOError,
-    TransportNotFoundError,
-    TransportStatusError,
-)
+from dataconnect.transport.errors import TransportError
 from dataconnect.transport.models import ResourceQuery
 
 # Server action identifiers
@@ -42,25 +26,6 @@ _ACTION_LIST_STUDIES = "studies.list"
 _ACTION_LIST_DATASETS = "datasets.list"
 _ACTION_LIST_DATASET_VERSIONS = "dataset_versions.list"
 _ACTION_FETCH_TICKET = "data.fetch_ticket"
-
-
-def _translate_error(ex: TransportError) -> DataConnectError:
-    """Map a ``TransportError`` to the appropriate public ``DataConnectError``."""
-
-    if isinstance(ex, TransportAuthenticationError):
-        return AuthenticationError(str(ex))
-    if isinstance(ex, TransportAuthorizationError):
-        return AuthorizationError(str(ex))
-    if isinstance(ex, TransportNotFoundError):
-        return NotFoundError(str(ex))
-    if isinstance(ex, TransportStatusError):
-        return ServerError(str(ex), status_code=ex.status_code)
-    if isinstance(ex, TransportConnectionError):
-        return ConnectionError(str(ex))
-    if isinstance(ex, TransportIOError):
-        return QueryError(str(ex))
-
-    return ServerError(str(ex))
 
 
 class DefaultDataConnectService(DataConnectService):
@@ -72,8 +37,15 @@ class DefaultDataConnectService(DataConnectService):
     # DataConnectService
 
     def get_studies(self, search_study_name: str | None = None) -> list[Study]:
+        """List studies the authenticated user can access.
 
-        validate_search_study_name(search_study_name)
+        Args:
+            search_study_name: Optional full or partial study name filter.
+
+        Returns:
+            A list of :class:`Study` objects matching the criteria.
+        """
+        # validate_search_study_name(search_study_name)
 
         request = ResourceQuery(action=_ACTION_LIST_STUDIES)
         if search_study_name and search_study_name.strip() != "":
@@ -81,33 +53,44 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             resources = self._transport.list_resources(request)
-        except TransportError as ex:
-            raise _translate_error(ex) from ex
-
-        try:
             return [resource_to_study(r) for r in resources]
-        except (IndexError, KeyError, TypeError, ValueError) as ex:
-            raise ValidationError(f"Unexpected studies response format: {ex}") from ex
+        except Exception as ex:
+            raise translate_error(ex) from ex
 
     def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]:
+        """List available versions for a dataset.
+
+        Args:
+            dataset_uuid: UUID of the dataset whose versions are requested.
+
+        Returns:
+            A list of :class:`DatasetVersion` objects for the given dataset.
+
+        Raises:
+            ValidationError: If *dataset_uuid* is not a valid, non-zero UUID.
+        """
         # Input validation: ensure callers pass a UUID
         if not isinstance(dataset_uuid, UUID):
-            raise ValidationError("dataset_uuid must be a valid UUID")
+            raise ValidationError(
+                error_code="VAL_C_DATASET_UUID",
+                message="dataset_uuid must be a valid UUID",
+                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            )
 
         if dataset_uuid.int == 0:
-            raise ValidationError("dataset_uuid must not be empty")
+            raise ValidationError(
+                error_code="VAL_C_DATASET_UUID",
+                message="dataset_uuid must not be empty",
+                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            )
 
         request = ResourceQuery(action=_ACTION_LIST_DATASET_VERSIONS).append_body({"dataset_uuid": str(dataset_uuid)})
 
         try:
             resources = self._transport.list_resources(request)
-        except TransportError as ex:
-            raise _translate_error(ex) from ex
-
-        try:
             return [resource_to_dataset_version(r) for r in resources]
-        except (IndexError, KeyError, TypeError, ValueError) as ex:
-            raise ValidationError(f"Unexpected dataset versions response format: {ex}") from ex
+        except Exception as ex:
+            raise translate_error(ex) from ex
 
     def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None) -> pd.DataFrame:
 
@@ -133,7 +116,7 @@ class DefaultDataConnectService(DataConnectService):
             table = self._transport.do_get(request)
             return resource_to_fetched_data(table)
         except TransportError as ex:
-            raise _translate_error(ex) from ex
+            raise translate_error(ex) from ex
 
     def get_datasets(
         self,
@@ -154,10 +137,18 @@ class DefaultDataConnectService(DataConnectService):
             A list of :class:`Dataset` items matching the criteria.
         """
         if not isinstance(study_environment_uuid, UUID):
-            raise ValidationError("study_environment_uuid must be a valid UUID")
+            raise ValidationError(
+                error_code="VAL_C_STUDY_ENV_UUID",
+                message="study_environment_uuid must be a valid UUID.",
+                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            )
 
         if study_environment_uuid.int == 0:
-            raise ValidationError("study_environment_uuid must not be empty")
+            raise ValidationError(
+                error_code="VAL_C_STUDY_ENV_UUID",
+                message="study_environment_uuid must not be empty.",
+                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            )
 
         request = ResourceQuery(action=_ACTION_LIST_DATASETS).append_body(
             {
@@ -170,17 +161,14 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             resources = self._transport.list_resources(request)
-        except TransportError as ex:
-            raise _translate_error(ex) from ex
-
-        try:
             return [resource_to_dataset(r) for r in resources]
-        except (IndexError, KeyError, TypeError, ValueError) as ex:
-            raise ValidationError(f"Unexpected datasets response format: {ex}") from ex
+        except TransportError as ex:
+            raise translate_error(ex) from ex
 
     def close(self) -> None:
+        """Close the underlying transport connection."""
 
         try:
             self._transport.close()
         except TransportError as ex:
-            raise ConnectionError(str(ex)) from ex
+            raise translate_error(ex) from ex
