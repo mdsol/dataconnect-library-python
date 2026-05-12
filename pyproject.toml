@@ -26,7 +26,7 @@ pandas = "^2.0.2"
 optional = true
 
 [tool.poetry.group.service.dependencies]
-gunicorn ="^20.1.0"
+gunicorn =">=20.1,<27.0"
 
 # ML
 [tool.poetry.group.ml]
