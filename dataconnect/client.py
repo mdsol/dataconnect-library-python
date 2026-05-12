@@ -12,7 +12,7 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.models import Dataset, DatasetVersion, Study
+from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Study
 from dataconnect.service import DataConnectService, DefaultDataConnectService
 
 _DEFAULT_HOST = "enodia-gateway.platform.imedidata.com"
@@ -67,7 +67,7 @@ class DataConnectClient:
         search_dataset_name: str = "",
         page: int = 1,
         page_size: int = 50,
-    ) -> list[Dataset]:
+    ) -> PaginatedResponse[Dataset]:
         """List datasets for a study environment.
 
         Args:
@@ -77,7 +77,7 @@ class DataConnectClient:
             page_size: Number of results per page.
 
         Returns:
-            A list of :class:`Dataset` items matching the criteria.
+            A :class:`PaginatedResponse` of :class:`Dataset` items matching the criteria.
         """
         return self._service.get_datasets(
             study_environment_uuid=study_environment_uuid,

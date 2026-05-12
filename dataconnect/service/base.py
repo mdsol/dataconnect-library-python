@@ -7,7 +7,7 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.models import Dataset, DatasetVersion, Study
+from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Study
 
 
 class DataConnectService(ABC):
@@ -23,7 +23,7 @@ class DataConnectService(ABC):
         search_dataset_name: str = "",
         page: int = 1,
         page_size: int = 50,
-    ) -> list[Dataset]: ...
+    ) -> PaginatedResponse[Dataset]: ...
 
     @abstractmethod
     def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]: ...

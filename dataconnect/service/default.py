@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.exceptions import ValidationError
-from dataconnect.models import Dataset, DatasetVersion, Study
+from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Pagination, Study
 from dataconnect.service.base import DataConnectService
 from dataconnect.service.error_handler import translate_error
 from dataconnect.service.mappers import (
@@ -17,6 +15,7 @@ from dataconnect.service.mappers import (
     resource_to_fetched_data,
     resource_to_study,
 )
+from dataconnect.service.validators import validate_positive_int, validate_uuid
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import TransportError
 from dataconnect.transport.models import ResourceQuery
@@ -69,20 +68,7 @@ class DefaultDataConnectService(DataConnectService):
         Raises:
             ValidationError: If *dataset_uuid* is not a valid, non-zero UUID.
         """
-        # Input validation: ensure callers pass a UUID
-        if not isinstance(dataset_uuid, UUID):
-            raise ValidationError(
-                error_code="VAL_C_DATASET_UUID",
-                message="dataset_uuid must be a valid UUID",
-                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            )
-
-        if dataset_uuid.int == 0:
-            raise ValidationError(
-                error_code="VAL_C_DATASET_UUID",
-                message="dataset_uuid must not be empty",
-                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            )
+        validate_uuid(dataset_uuid, field_name="dataset_uuid", error_code="VAL_C_DATASET_UUID")
 
         request = ResourceQuery(action=_ACTION_LIST_DATASET_VERSIONS).append_body({"dataset_uuid": str(dataset_uuid)})
 
@@ -124,7 +110,7 @@ class DefaultDataConnectService(DataConnectService):
         search_dataset_name: str = "",
         page: int = 1,
         page_size: int = 50,
-    ) -> list[Dataset]:
+    ) -> PaginatedResponse[Dataset]:
         """List datasets for a study environment.
 
         Args:
@@ -134,21 +120,11 @@ class DefaultDataConnectService(DataConnectService):
             page_size: Number of results per page.
 
         Returns:
-            A list of :class:`Dataset` items matching the criteria.
+            A :class:`PaginatedResponse` of :class:`Dataset` items matching the criteria.
         """
-        if not isinstance(study_environment_uuid, UUID):
-            raise ValidationError(
-                error_code="VAL_C_STUDY_ENV_UUID",
-                message="study_environment_uuid must be a valid UUID.",
-                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            )
-
-        if study_environment_uuid.int == 0:
-            raise ValidationError(
-                error_code="VAL_C_STUDY_ENV_UUID",
-                message="study_environment_uuid must not be empty.",
-                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            )
+        validate_uuid(study_environment_uuid, field_name="study_environment_uuid", error_code="VAL_C_STUDY_ENV_UUID")
+        validate_positive_int(page, field_name="page", error_code="VAL_C_PAGE")
+        validate_positive_int(page_size, field_name="page_size", error_code="VAL_C_PAGE_SIZE")
 
         request = ResourceQuery(action=_ACTION_LIST_DATASETS).append_body(
             {
@@ -161,7 +137,14 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             resources = self._transport.list_resources(request)
-            return [resource_to_dataset(r) for r in resources]
+            items = [resource_to_dataset(r) for r in resources]
+            total_records = resources[0].total_records if resources else 0
+            total_pages = (total_records + page_size - 1) // page_size if page_size > 0 else 0
+            return PaginatedResponse(
+                total_records=total_records,
+                pagination=Pagination(page=page, page_size=page_size, total_pages=total_pages),
+                items=items,
+            )
         except TransportError as ex:
             raise translate_error(ex) from ex
 
