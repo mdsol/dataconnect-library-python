@@ -12,7 +12,6 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.models import DatasetVersion, Study
 from dataconnect.models import Dataset, DatasetVersion, Study
 from dataconnect.service import DataConnectService, DefaultDataConnectService
 
@@ -61,6 +60,7 @@ class DataConnectClient:
     ) -> pd.DataFrame:
         """Fetch data frames for a given dataset UUID."""
         return self._service.fetch_data(dataset_uuid, first_n_rows)
+
     def get_datasets(
         self,
         study_environment_uuid: UUID,

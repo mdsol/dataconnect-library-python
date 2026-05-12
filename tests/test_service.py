@@ -16,7 +16,6 @@ from dataconnect.exceptions import (
     ServerError,
     ValidationError,
 )
-from dataconnect.exceptions import ConnectionError, ValidationError
 from dataconnect.models import Dataset, DatasetVersion
 from dataconnect.service.default import DefaultDataConnectService
 from dataconnect.transport.errors import (
@@ -348,6 +347,8 @@ def test_fetch_data_translates_status_error() -> None:
 
     with pytest.raises(ServerError, match="internal"):
         service.fetch_data(dataset_uuid)
+
+
 # --- get_datasets tests ---
 
 

@@ -7,7 +7,6 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.models import DatasetVersion, Study
 from dataconnect.models import Dataset, DatasetVersion, Study
 
 

@@ -18,8 +18,12 @@ from dataconnect.exceptions import (
 )
 from dataconnect.models import Dataset, DatasetVersion, Study
 from dataconnect.service.base import DataConnectService
-from dataconnect.service.mappers import resource_to_dataset_version, resource_to_fetched_data, resource_to_study
-from dataconnect.service.mappers import resource_to_dataset, resource_to_dataset_version, resource_to_study
+from dataconnect.service.mappers import (
+    resource_to_dataset,
+    resource_to_dataset_version,
+    resource_to_fetched_data,
+    resource_to_study,
+)
 from dataconnect.service.validators import validate_search_study_name
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import (
@@ -122,6 +126,15 @@ class DefaultDataConnectService(DataConnectService):
                 "dataset_name": None,
                 "dataset_uuid": str(dataset_uuid),
                 "limit": first_n_rows,
+            }
+        )
+
+        try:
+            table = self._transport.do_get(request)
+            return resource_to_fetched_data(table)
+        except TransportError as ex:
+            raise _translate_error(ex) from ex
+
     def get_datasets(
         self,
         study_environment_uuid: UUID,
@@ -156,11 +169,6 @@ class DefaultDataConnectService(DataConnectService):
         )
 
         try:
-            table = self._transport.do_get(request)
-            return resource_to_fetched_data(table)
-        except TransportError as ex:
-            raise _translate_error(ex) from ex
-
             resources = self._transport.list_resources(request)
         except TransportError as ex:
             raise _translate_error(ex) from ex

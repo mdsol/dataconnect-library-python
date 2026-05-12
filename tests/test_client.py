@@ -22,21 +22,16 @@ class _FakeService:
         studies: list[Study] | None = None,
         versions: list[DatasetVersion] | None = None,
         fetch_data_result: pd.DataFrame | None = None,
-    ) -> None:
-        self._studies = studies or []
-        self._versions = versions or []
-        self._fetch_data_result = fetch_data_result if fetch_data_result is not None else pd.DataFrame()
-        self.closed = 0
-        self.last_dataset_uuid: UUID | None = None
-        self.last_fetch_data_uuid: UUID | None = None
-        self.last_first_n_rows: int | None = None
         datasets: list[Dataset] | None = None,
     ) -> None:
         self._studies = studies or []
         self._versions = versions or []
+        self._fetch_data_result = fetch_data_result if fetch_data_result is not None else pd.DataFrame()
         self._datasets = datasets or []
         self.closed = 0
         self.last_dataset_uuid: UUID | None = None
+        self.last_fetch_data_uuid: UUID | None = None
+        self.last_first_n_rows: int | None = None
         self.last_get_datasets_kwargs: dict[str, object] | None = None
 
     def get_studies(self) -> list[Study]:
@@ -50,6 +45,7 @@ class _FakeService:
         self.last_fetch_data_uuid = dataset_uuid
         self.last_first_n_rows = first_n_rows
         return self._fetch_data_result
+
     def get_datasets(self, **kwargs: object) -> list[Dataset]:
         self.last_get_datasets_kwargs = kwargs
         return self._datasets

@@ -14,10 +14,8 @@ import pandas as pd
 import pyarrow as pa
 
 from dataconnect.exceptions import NotFoundError
-from dataconnect.models import DatasetVersion, Study, StudyEnvironment
-from dataconnect.transport.models import DataTable, ResourceInfo
 from dataconnect.models import Dataset, DatasetVersion, Study, StudyEnvironment
-from dataconnect.transport.models import ResourceInfo
+from dataconnect.transport.models import DataTable, ResourceInfo
 
 
 def resource_to_study(resource: ResourceInfo) -> Study:
@@ -58,6 +56,8 @@ def resource_to_fetched_data(table: DataTable) -> pd.DataFrame:
     ipc_buffer = pa.BufferReader(table.ipc_bytes)
     with pa.ipc.open_stream(ipc_buffer) as reader:
         return reader.read_all().to_pandas()
+
+
 def resource_to_dataset(resource: ResourceInfo) -> Dataset:
     """Parse a transport-layer ``ResourceInfo`` into a ``Dataset`` domain object."""
 
