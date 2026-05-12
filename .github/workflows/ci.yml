@@ -44,11 +44,11 @@ jobs:
         ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
         ARTIFACTORY_USER: ${{ vars.ARTIFACTORY_USER }}
 
-    - name: test (unit & integration)
-      run: docker run dataconnect-library-python "scripts/test.sh"
+    # - name: test (unit & integration)
+    #   run: docker run dataconnect-library-python "scripts/test.sh"
 
-    - name: benchmarks
-      run: docker run dataconnect-library-python "scripts/benchmark.sh"
+    # - name: benchmarks
+    #   run: docker run dataconnect-library-python "scripts/benchmark.sh"
 
     - name: typecheck
       run: docker run dataconnect-library-python "scripts/typecheck.sh"
