@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from dataconnect.models import DatasetVersion, Study
+from dataconnect.models import Dataset, DatasetVersion, Study
 
 
 class DataConnectService(ABC):
@@ -13,6 +13,15 @@ class DataConnectService(ABC):
 
     @abstractmethod
     def get_studies(self, search_study_name: str | None = None) -> list[Study]: ...
+
+    @abstractmethod
+    def get_datasets(
+        self,
+        study_environment_uuid: UUID,
+        search_dataset_name: str = "",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> list[Dataset]: ...
 
     @abstractmethod
     def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]: ...
