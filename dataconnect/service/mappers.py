@@ -8,6 +8,7 @@ decoding) is isolated here.
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from uuid import UUID
 
 from dataconnect.exceptions import NotFoundError
@@ -19,7 +20,11 @@ def resource_to_study(resource: ResourceInfo) -> Study:
     """Parse a transport-layer ``ResourceInfo`` into a ``Study`` domain object."""
 
     if not resource or not resource.endpoints or not resource.endpoints[0].ticket:
-        raise NotFoundError("Invalid resource: missing endpoints or ticket")
+        raise NotFoundError(
+            error_code="SDK_ERROR",
+            message="Invalid resource: missing endpoints or ticket",
+            timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        )
 
     data = json.loads(resource.endpoints[0].ticket.decode("utf-8"))
 
@@ -34,7 +39,11 @@ def resource_to_dataset_version(resource: ResourceInfo) -> DatasetVersion:
     """Parse a transport-layer ``ResourceInfo`` into a ``DatasetVersion`` domain object."""
 
     if not resource or not resource.endpoints or not resource.endpoints[0].ticket:
-        raise NotFoundError("Invalid resource: missing endpoints or ticket")
+        raise NotFoundError(
+            error_code="SDK_ERROR",
+            message="Invalid resource: missing endpoints or ticket",
+            timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        )
 
     data = json.loads(resource.endpoints[0].ticket.decode("utf-8"))
 
@@ -51,7 +60,11 @@ def resource_to_dataset(resource: ResourceInfo) -> Dataset:
     """Parse a transport-layer ``ResourceInfo`` into a ``Dataset`` domain object."""
 
     if not resource or not resource.endpoints or not resource.endpoints[0].ticket:
-        raise NotFoundError("Invalid resource: missing endpoints or ticket")
+        raise NotFoundError(
+            error_code="SDK_ERROR",
+            message="Invalid resource: missing endpoints or ticket",
+            timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        )
 
     data = json.loads(resource.endpoints[0].ticket.decode("utf-8"))
 
