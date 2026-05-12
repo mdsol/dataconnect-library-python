@@ -30,6 +30,9 @@ from dataconnect.transport.errors import (
 def translate_error(ex: Exception) -> DataConnectError:
     """Map a transport-layer exception to the appropriate public ``DataConnectError`` subtype."""
 
+    if isinstance(ex, DataConnectError):
+        return ex
+
     if not isinstance(ex, TransportError):
         return DataConnectError(error_code="SDK_ERROR", message=str(ex))
 
