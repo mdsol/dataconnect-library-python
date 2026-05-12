@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from dataconnect.transport.models import ResourceInfo, ResourceQuery
+from dataconnect.transport.models import DataTable, ResourceInfo, ResourceQuery
 
 
 class Transport(ABC):
@@ -21,6 +21,14 @@ class Transport(ABC):
 
         The transport does not interpret the action name or body — that is the
         service layer's responsibility.
+        """
+
+    @abstractmethod
+    def do_get(self, request: ResourceQuery) -> DataTable:
+        """Fetch the full dataset described by ``request``.
+
+        All record batches from the stream are read and returned as a single
+        ``DataTable`` containing the complete result set.
         """
 
     @abstractmethod

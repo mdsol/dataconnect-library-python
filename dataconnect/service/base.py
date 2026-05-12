@@ -5,6 +5,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from uuid import UUID
 
+import pandas as pd
+
 from dataconnect.models import Dataset, DatasetVersion, Study
 
 
@@ -25,6 +27,13 @@ class DataConnectService(ABC):
 
     @abstractmethod
     def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]: ...
+
+    @abstractmethod
+    def fetch_data(
+        self,
+        dataset_uuid: UUID,
+        first_n_rows: int | None = None,
+    ) -> pd.DataFrame: ...
 
     @abstractmethod
     def close(self) -> None: ...

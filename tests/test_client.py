@@ -4,10 +4,16 @@ import sys
 from types import ModuleType
 from uuid import UUID
 
+import pandas as pd
 import pytest
 
 from dataconnect.client import DataConnectClient
 from dataconnect.models import Dataset, DatasetVersion, Study
+
+
+def _make_dataframe() -> pd.DataFrame:
+    """Return a small DataFrame for use in fetch_data wiring tests."""
+    return pd.DataFrame({"subject_id": ["S001"], "age": [30]})
 
 
 class _FakeService:
@@ -15,13 +21,17 @@ class _FakeService:
         self,
         studies: list[Study] | None = None,
         versions: list[DatasetVersion] | None = None,
+        fetch_data_result: pd.DataFrame | None = None,
         datasets: list[Dataset] | None = None,
     ) -> None:
         self._studies = studies or []
         self._versions = versions or []
+        self._fetch_data_result = fetch_data_result if fetch_data_result is not None else pd.DataFrame()
         self._datasets = datasets or []
         self.closed = 0
         self.last_dataset_uuid: UUID | None = None
+        self.last_fetch_data_uuid: UUID | None = None
+        self.last_first_n_rows: int | None = None
         self.last_get_datasets_kwargs: dict[str, object] | None = None
 
     def get_studies(self) -> list[Study]:
@@ -30,6 +40,11 @@ class _FakeService:
     def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]:
         self.last_dataset_uuid = dataset_uuid
         return self._versions
+
+    def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None) -> pd.DataFrame:
+        self.last_fetch_data_uuid = dataset_uuid
+        self.last_first_n_rows = first_n_rows
+        return self._fetch_data_result
 
     def get_datasets(self, **kwargs: object) -> list[Dataset]:
         self.last_get_datasets_kwargs = kwargs
@@ -107,6 +122,31 @@ def test_connect_uses_arrow_transport_and_default_service(monkeypatch: pytest.Mo
     assert captured["use_tls"] is False
     assert captured["token"] == "abc123"
     assert isinstance(captured["transport"], FakeArrowFlightTransport)
+
+
+def test_fetch_data_forwards_args_to_service() -> None:
+    """Client.fetch_data must delegate uuid and first_n_rows to the service unchanged."""
+    dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
+    expected_df = _make_dataframe()
+    service = _FakeService(fetch_data_result=expected_df)
+    client = DataConnectClient(service)
+
+    result = client.fetch_data(dataset_uuid, first_n_rows=5)
+
+    assert result is expected_df
+    assert service.last_fetch_data_uuid == dataset_uuid
+    assert service.last_first_n_rows == 5
+
+
+def test_fetch_data_forwards_no_limit_to_service() -> None:
+    """When first_n_rows is omitted, None must be forwarded to the service."""
+    dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
+    service = _FakeService(fetch_data_result=_make_dataframe())
+    client = DataConnectClient(service)
+
+    client.fetch_data(dataset_uuid)
+
+    assert service.last_first_n_rows is None
 
 
 @pytest.mark.benchmark
