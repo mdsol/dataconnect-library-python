@@ -75,3 +75,14 @@
 #     assert len(studies) == 1
 #     assert transport.last_request is not None
 #     assert transport.last_request.body == ""
+
+# def test_get_dataset_versions_sorted(monkeypatch):
+#     service = DefaultDataConnectService(transport=DummyTransport())
+#     # Patch the mapping function to our dummy
+#     monkeypatch.setattr(
+#         "dataconnect.service.default.resource_to_dataset_version",
+#         dummy_resource_to_dataset_version,
+#     )
+#     result = service.get_dataset_versions(UUID("073410b6-79be-3e7d-ae37-92f6e054013e"))
+#     versions = [dv.dataset_version for dv in result]
+#     assert versions == sorted(versions, reverse=True)
