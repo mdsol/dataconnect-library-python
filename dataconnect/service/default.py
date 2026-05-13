@@ -74,7 +74,13 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             resources = self._transport.list_resources(request)
-            return [resource_to_dataset_version(r) for r in resources]
+
+            # Return Sorted dataset versions in descending order (newest first) based on the dataset_version field.
+            return sorted(
+                (resource_to_dataset_version(r) for r in resources),
+                key=lambda dv: dv.dataset_version,
+                reverse=True,
+            )
         except Exception as ex:
             raise translate_error(ex) from ex
 
