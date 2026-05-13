@@ -16,6 +16,7 @@ priority = "supplemental"
 #
 # Dependancies
 #
+
 [tool.poetry.dependencies]
 python = ">=3.13,<3.14"
 pyarrow = "^19.0.0"
