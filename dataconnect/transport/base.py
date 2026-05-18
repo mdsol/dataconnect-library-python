@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from dataconnect.transport.models import DataTable, ResourceInfo, ResourceQuery
+from dataconnect.transport.models import DataTable, DatasetTicket, ResourceInfo, ResourceQuery
 
 
 class Transport(ABC):
@@ -24,8 +24,8 @@ class Transport(ABC):
         """
 
     @abstractmethod
-    def do_get(self, request: ResourceQuery) -> DataTable:
-        """Fetch the full dataset described by ``request``.
+    def get_ticket(self, ticket: DatasetTicket) -> DataTable:
+        """Fetch the full dataset described by ``ticket``.
 
         All record batches from the stream are read and returned as a single
         ``DataTable`` containing the complete result set.
