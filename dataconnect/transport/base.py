@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from dataconnect.transport.models import DataTable, DatasetTicket, ResourceInfo, ResourceQuery
+from dataconnect.transport.models import DatasetTicket, DataTable, ResourceInfo, ResourceQuery
 
 
 class Transport(ABC):

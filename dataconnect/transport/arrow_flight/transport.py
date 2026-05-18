@@ -19,7 +19,7 @@ import pyarrow.flight as flight
 from dataconnect.transport.arrow_flight.error_handler import parse_dataconnect_error
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import TransportValidationError
-from dataconnect.transport.models import DataRef, DataTable, DatasetTicket, ResourceInfo, ResourceQuery
+from dataconnect.transport.models import DataRef, DatasetTicket, DataTable, ResourceInfo, ResourceQuery
 
 
 def _to_resource_info(info: flight.FlightInfo) -> ResourceInfo:

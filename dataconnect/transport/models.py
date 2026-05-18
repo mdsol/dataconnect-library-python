@@ -29,6 +29,7 @@ class DataRef:
 
     ticket: bytes
 
+
 @dataclass(frozen=True)
 class DatasetTicket:
     """A data ticket for a specific dataset, containing all information needed to fetch the data."""
@@ -38,6 +39,7 @@ class DatasetTicket:
     study_env_uuid: str | None = None
     dataset_name: str | None = None
     dataset_version: str | None = None
+
 
 @dataclass(frozen=True)
 class ResourceInfo:

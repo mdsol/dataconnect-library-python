@@ -7,6 +7,7 @@ from uuid import UUID
 
 import pandas as pd
 
+from dataconnect.exceptions import ErrorDetail, ValidationError
 from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Pagination, Study
 from dataconnect.service.base import DataConnectService
 from dataconnect.service.error_handler import translate_error
@@ -19,7 +20,6 @@ from dataconnect.service.mappers import (
 from dataconnect.service.validators import validate_positive_int, validate_uuid
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import TransportError
-from dataconnect.exceptions import ValidationError, ErrorDetail
 from dataconnect.transport.models import DatasetTicket, ResourceQuery
 
 # Server action identifiers
@@ -93,8 +93,8 @@ class DefaultDataConnectService(DataConnectService):
                 error_code="VAL_C_DATASET_UUID",
                 message="Invalid dataset_uuid.",
                 timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                details=[ErrorDetail(field="dataset_uuid", 
-                                    message=f"dataset_uuid must be a valid UUID.", 
+                details=[ErrorDetail(field="dataset_uuid",
+                                    message="dataset_uuid must be a valid UUID.",
                                     expected="Review and provide the correct dataset_uuid.")],
             )
 
@@ -103,10 +103,17 @@ class DefaultDataConnectService(DataConnectService):
                 raise ValidationError(
                     error_code="VAL_C_FIRST_N_ROWS",
                     message="Invalid first_n_rows.",
-                    timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), 
-                    details=[ErrorDetail(field="first_n_rows", 
-                                        message=f"Received {first_n_rows} for first_n_rows, which is not a positive integer.", 
-                                        expected="Set first_n_rows to 1 or greater, or omit the parameter to retrieve the full dataset")],
+                    timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    details=[
+                        ErrorDetail(
+                            field="first_n_rows",
+                            message=f"Received {first_n_rows} for first_n_rows, which is not a positive integer.",  # noqa: E501
+                            expected=(
+                                "Set first_n_rows to 1 or greater, or omit the parameter"
+                                " to retrieve the full dataset"
+                            ),
+                        )
+                    ],
                 )
 
         ticket = DatasetTicket(
