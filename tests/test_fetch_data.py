@@ -235,9 +235,7 @@ def test_fetch_data_translates_not_found_error() -> None:
 
 def test_fetch_data_translates_server_error() -> None:
     dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
-    transport = _FakeTransport(
-        get_ticket_error=TransportServerError(error_code="INT_001", message="internal error")
-    )
+    transport = _FakeTransport(get_ticket_error=TransportServerError(error_code="INT_001", message="internal error"))
     service = DefaultDataConnectService(transport)
 
     with pytest.raises(ServerError):

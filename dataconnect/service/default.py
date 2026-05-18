@@ -93,9 +93,13 @@ class DefaultDataConnectService(DataConnectService):
                 error_code="VAL_C_DATASET_UUID",
                 message="Invalid dataset_uuid.",
                 timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                details=[ErrorDetail(field="dataset_uuid",
-                                    message="dataset_uuid must be a valid UUID.",
-                                    expected="Review and provide the correct dataset_uuid.")],
+                details=[
+                    ErrorDetail(
+                        field="dataset_uuid",
+                        message="dataset_uuid must be a valid UUID.",
+                        expected="Review and provide the correct dataset_uuid.",
+                    )
+                ],
             )
 
         if first_n_rows is not None:
@@ -109,8 +113,7 @@ class DefaultDataConnectService(DataConnectService):
                             field="first_n_rows",
                             message=f"Received {first_n_rows} for first_n_rows, which is not a positive integer.",  # noqa: E501
                             expected=(
-                                "Set first_n_rows to 1 or greater, or omit the parameter"
-                                " to retrieve the full dataset"
+                                "Set first_n_rows to 1 or greater, or omit the parameter to retrieve the full dataset"
                             ),
                         )
                     ],
