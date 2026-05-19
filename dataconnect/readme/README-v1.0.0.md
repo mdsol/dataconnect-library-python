@@ -14,6 +14,12 @@ To use this library, you must have a valid iMedidata account and access to requi
 - [Quick Start](#quick-start)
 - [Features](#features)
 - [Public API Reference](#public-api-reference)
+	- [connect()](#connect)
+	- [get_studies()](#get_studies)
+	- [get_datasets()](#get_datasets)
+	- [get_dataset_versions()](#get_dataset_versions)
+	- [fetch_data()](#fetch_data)
+	- [close()](#close)
 - [Error Handling](#error-handling)
 - [Data Models](#data-models)
 
@@ -114,10 +120,10 @@ finally:
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
-| host | str | Dataconnect host. |
-| port | int | Server port. |
-| use_tls | bool | Enable TLS. |
-| token | str | Bearer token for authorization. |
+| host | str | Dataconnect host |
+| port | int | Server port |
+| use_tls | bool | Enable TLS |
+| token | str | Bearer token for authorization |
 
 #### Output
 - Returns: `DataconnectClient`
@@ -145,7 +151,7 @@ for study in studies:
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
-| search_study_name | str or None | Optional full or partial study name filter. |
+| search_study_name | str or None | Optional full or partial study name filter |
 
 #### Output
 - Returns: `list[Study]`
@@ -182,10 +188,10 @@ for dataset in response.items:
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
-| study_environment_uuid | UUID | Required study environment UUID. |
-| search_dataset_name | str | Full or partial dataset name filter. |
-| page | int | Page number for paginated results (>=1). |
-| page_size | int | Number of results per page (>=1). |
+| study_environment_uuid | UUID | Required study environment UUID |
+| search_dataset_name | str | Full or partial dataset name filter |
+| page | int | Page number for paginated results (>=1) |
+| page_size | int | Number of results per page (>=1) |
 
 #### Output
 - Returns: `PaginatedResponse[Dataset]`
@@ -216,7 +222,7 @@ for version in versions:
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
-| dataset_uuid | UUID | Required dataset UUID. |
+| dataset_uuid | UUID | Required dataset UUID |
 
 #### Output
 - Returns: `list[DatasetVersion]`
@@ -227,7 +233,7 @@ for version in versions:
 
 ---
 
-### fetch_data(dataset_uuid, first_n_rows=None)
+### fetch_data()
 
 #### Description
 Fetches dataset rows into a pandas DataFrame.
@@ -246,8 +252,8 @@ print(df.shape)
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
-| dataset_uuid | UUID | Required dataset UUID. |
-| first_n_rows | int or None | Optional positive row limit. |
+| dataset_uuid | UUID | Required dataset UUID |
+| first_n_rows | int or None | Optional positive row limit |
 
 #### Output
 - Returns: `pandas.DataFrame`
@@ -262,10 +268,10 @@ Closes the underlying transport connection.
 
 | Item | Details |
 |---|---|
-| Description | Releases network resources used by the client. |
+| Description | Releases network resources used by the client |
 | Parameters | None |
 | Returns | None |
-| Error handling | May raise `DataconnectError` subclasses if close fails at transport level. |
+| Error handling | May raise `DataconnectError` subclasses if close fails at transport level |
 
 Example example:
 
@@ -283,11 +289,11 @@ All public errors inherit from `DataconnectError`.
 
 | Exception | Typical meaning |
 |---|---|
-| AuthenticationError | Invalid or missing credentials/token. |
-| AuthorizationError | Authenticated but not allowed to access requested resource. |
-| NotFoundError | Requested study/dataset/resource does not exist. |
-| ServerError | Unexpected server-side failure. |
-| ValidationError | Invalid inputs or malformed/invalid response payloads. |
+| AuthenticationError | Invalid or missing credentials/token |
+| AuthorizationError | Authenticated but not allowed to access requested resource |
+| NotFoundError | Requested study/dataset/resource does not exist |
+| ServerError | Unexpected server-side failure |
+| ValidationError | Invalid inputs or malformed/invalid response payloads |
 
 Example:
 
