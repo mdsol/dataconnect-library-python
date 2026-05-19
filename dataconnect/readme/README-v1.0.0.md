@@ -92,12 +92,15 @@ with DataconnectClient.connect(token="your-bearer-token") as client:
 
 The main public entry point is `Dataconnect.DataconnectClient`.
 
-### `DataconnectClient.connect(host="enodia-gateway.platform.imedidata.com", port=443, use_tls=True, token="")`
+### connect()
 
 #### Description
 Creates a connected client using the default Arrow Flight transport.
 
 #### Usage
+`connect(host="enodia-gateway.platform.imedidata.com", port=443, use_tls=True, token="")`
+
+#### Example
 ```python
 from Dataconnect import DataconnectClient
 
@@ -111,10 +114,10 @@ finally:
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
-| `host` | `str` | Dataconnect host. |
-| `port` | `int` | Server port. |
-| `use_tls` | `bool` | Enable TLS. |
-| `token` | `str` | Bearer token for authorization. |
+| host | str | Dataconnect host. |
+| port | int | Server port. |
+| use_tls | bool | Enable TLS. |
+| token | str | Bearer token for authorization. |
 
 #### Output
 - Returns: `DataconnectClient`
@@ -124,12 +127,15 @@ finally:
 
 ---
 
-### `get_studies(search_study_name=None)`
+### get_studies()
 
 #### Description
 Lists studies the authenticated user can access, optionally filtered by full or partial study name.
 
 #### Usage
+`get_studies(search_study_name=None)`
+
+#### Example
 ```python
 studies = client.get_studies(search_study_name="<search-study-name>")
 for study in studies:
@@ -139,7 +145,7 @@ for study in studies:
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
-| `search_study_name` | `str | None` | Optional full or partial study name filter. |
+| search_study_name | str or None | Optional full or partial study name filter. |
 
 #### Output
 - Returns: `list[Study]`
@@ -149,12 +155,15 @@ for study in studies:
 
 ---
 
-### `get_datasets(study_environment_uuid, search_dataset_name="", page=1, page_size=50)`
+### get_datasets()
 
 #### Description
 Retrieves datasets for a specific study environment and returns paginated results.
 
 #### Usage
+`get_datasets(study_environment_uuid, search_dataset_name="", page=1, page_size=50)`
+
+#### Example
 ```python
 from uuid import UUID
 
@@ -173,10 +182,10 @@ for dataset in response.items:
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
-| `study_environment_uuid` | `UUID` | Required study environment UUID. |
-| `search_dataset_name` | `str` | Full or partial dataset name filter. |
-| `page` | `int` | Page number for paginated results (>=1). |
-| `page_size` | `int` | Number of results per page (>=1). |
+| study_environment_uuid | UUID | Required study environment UUID. |
+| search_dataset_name | str | Full or partial dataset name filter. |
+| page | int | Page number for paginated results (>=1). |
+| page_size | int | Number of results per page (>=1). |
 
 #### Output
 - Returns: `PaginatedResponse[Dataset]`
@@ -187,12 +196,15 @@ for dataset in response.items:
 
 ---
 
-### `get_dataset_versions(dataset_uuid)`
+### get_dataset_versions()
 
 #### Description
 Retrieves all available versions for a dataset, sorted in descending version order.
 
 #### Usage
+`get_dataset_versions(dataset_uuid)`
+
+#### Example
 ```python
 from uuid import UUID
 
@@ -204,7 +216,7 @@ for version in versions:
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
-| `dataset_uuid` | `UUID` | Required dataset UUID. |
+| dataset_uuid | UUID | Required dataset UUID. |
 
 #### Output
 - Returns: `list[DatasetVersion]`
@@ -215,12 +227,15 @@ for version in versions:
 
 ---
 
-### `fetch_data(dataset_uuid, first_n_rows=None)`
+### fetch_data(dataset_uuid, first_n_rows=None)
 
 #### Description
 Fetches dataset rows into a pandas DataFrame.
 
-#### Usage
+### Usage
+`fetch_data(dataset_uuid, first_n_rows=None)`
+
+#### Example
 ```python
 from uuid import UUID
 
@@ -231,8 +246,8 @@ print(df.shape)
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
-| `dataset_uuid` | `UUID` | Required dataset UUID. |
-| `first_n_rows` | `int | None` | Optional positive row limit. |
+| dataset_uuid | UUID | Required dataset UUID. |
+| first_n_rows | int or None | Optional positive row limit. |
 
 #### Output
 - Returns: `pandas.DataFrame`
@@ -241,7 +256,7 @@ print(df.shape)
 - Raises `ValidationError` for invalid `dataset_uuid` or non-positive `first_n_rows`.
 - Raises other `DataconnectError` subclasses for service failures.
 
-### `close()`
+### close()
 
 Closes the underlying transport connection.
 
@@ -252,7 +267,7 @@ Closes the underlying transport connection.
 | Returns | None |
 | Error handling | May raise `DataconnectError` subclasses if close fails at transport level. |
 
-Usage example:
+Example example:
 
 ```python
 client = DataconnectClient.connect(token="<access-token>")
@@ -268,11 +283,11 @@ All public errors inherit from `DataconnectError`.
 
 | Exception | Typical meaning |
 |---|---|
-| `AuthenticationError` | Invalid or missing credentials/token. |
-| `AuthorizationError` | Authenticated but not allowed to access requested resource. |
-| `NotFoundError` | Requested study/dataset/resource does not exist. |
-| `ServerError` | Unexpected server-side failure. |
-| `ValidationError` | Invalid inputs or malformed/invalid response payloads. |
+| AuthenticationError | Invalid or missing credentials/token. |
+| AuthorizationError | Authenticated but not allowed to access requested resource. |
+| NotFoundError | Requested study/dataset/resource does not exist. |
+| ServerError | Unexpected server-side failure. |
+| ValidationError | Invalid inputs or malformed/invalid response payloads. |
 
 Example:
 
@@ -303,10 +318,10 @@ except DataconnectError as exc:
 
 | Model | Fields |
 |---|---|
-| `StudyEnvironment` | `uuid`, `name` |
-| `Study` | `uuid`, `name`, `environments` |
-| `Dataset` | `dataset_uuid`, `study_uuid`, `study_env_uuid`, `dataset_name` |
-| `DatasetVersion` | `study_uuid`, `study_environment_uuid`, `dataset_uuid`, `dataset_name`, `dataset_version` |
-| `Pagination` | `page`, `page_size`, `total_pages` |
-| `PaginatedResponse[T]` | `total_records`, `pagination`, `items` |
+| StudyEnvironment | `uuid`, `name` |
+| Study | `uuid`, `name`, `environments` |
+| Dataset | `dataset_uuid`, `study_uuid`, `study_env_uuid`, `dataset_name` |
+| DatasetVersion | `study_uuid`, `study_environment_uuid`, `dataset_uuid`, `dataset_name`, `dataset_version` |
+| Pagination | `page`, `page_size`, `total_pages` |
+| PaginatedResponse[T] | `total_records`, `pagination`, `items` |
 
