@@ -8,6 +8,7 @@ technology-agnostic ``TransportError`` subtypes before propagating up.
 from __future__ import annotations
 
 import base64
+import dataclasses
 import json
 import platform
 import subprocess
@@ -170,7 +171,7 @@ class ArrowFlightTransport(Transport):
     def get_ticket(self, ticket: DatasetTicket) -> DataTable:
         """Call FlightClient.do_get and read all chunks into a single pa.Table."""
 
-        ticket_bytes = json.dumps(ticket.__dict__, separators=(",", ":")).encode("utf-8")
+        ticket_bytes = json.dumps(dataclasses.asdict(ticket), separators=(",", ":")).encode("utf-8")
         ticket = flight.Ticket(ticket_bytes)
 
         try:
