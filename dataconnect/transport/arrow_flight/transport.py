@@ -8,6 +8,7 @@ technology-agnostic ``TransportError`` subtypes before propagating up.
 from __future__ import annotations
 
 import base64
+import dataclasses
 import json
 import platform
 import subprocess
@@ -19,7 +20,7 @@ import pyarrow.flight as flight
 from dataconnect.transport.arrow_flight.error_handler import parse_dataconnect_error
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import TransportValidationError
-from dataconnect.transport.models import DataRef, DataTable, ResourceInfo, ResourceQuery
+from dataconnect.transport.models import DataRef, DatasetTicket, DataTable, ResourceInfo, ResourceQuery
 
 
 def _to_resource_info(info: flight.FlightInfo) -> ResourceInfo:
@@ -167,20 +168,10 @@ class ArrowFlightTransport(Transport):
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex
 
-    def do_get(self, request: ResourceQuery) -> DataTable:
+    def get_ticket(self, ticket: DatasetTicket) -> DataTable:
         """Call FlightClient.do_get and read all chunks into a single pa.Table."""
 
-        flight_type = _ACTION_FLIGHT_TYPE.get(request.action)
-
-        if flight_type is None:
-            raise TransportValidationError(
-                error_code="VAL_001",
-                message=f"Unsupported action: {request.action}",
-                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            )
-
-        body = json.loads(request.body) if request.body else {}
-        ticket_bytes = json.dumps({**body, "flight_type": flight_type}, separators=(",", ":")).encode("utf-8")
+        ticket_bytes = json.dumps(dataclasses.asdict(ticket), separators=(",", ":")).encode("utf-8")
         ticket = flight.Ticket(ticket_bytes)
 
         try:

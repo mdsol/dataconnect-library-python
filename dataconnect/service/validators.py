@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
-from dataconnect.exceptions import ValidationError
+from dataconnect.exceptions import ErrorDetail, ValidationError
 
 
 def validate_search_study_name(search_study_name: str | None) -> None:
@@ -18,7 +18,14 @@ def validate_search_study_name(search_study_name: str | None) -> None:
         raise ValidationError("search_study_name must be a string")
 
 
-def validate_uuid(value: object, *, field_name: str, error_code: str) -> None:
+def validate_uuid(
+    value: object,
+    *,
+    field_name: str,
+    error_code: str,
+    message: str | None = None,
+    details: list[ErrorDetail] | None = None,
+) -> None:
     """Ensure *value* is a non-zero UUID.
 
     Raises:
@@ -27,19 +34,28 @@ def validate_uuid(value: object, *, field_name: str, error_code: str) -> None:
     if not isinstance(value, UUID):
         raise ValidationError(
             error_code=error_code,
-            message=f"{field_name} must be a valid UUID.",
+            message=message or f"{field_name} must be a valid UUID.",
             timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            details=details,
         )
 
     if value.int == 0:
         raise ValidationError(
             error_code=error_code,
-            message=f"{field_name} must not be empty.",
+            message=message or f"{field_name} must not be empty.",
             timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            details=details,
         )
 
 
-def validate_positive_int(value: object, *, field_name: str, error_code: str) -> None:
+def validate_positive_int(
+    value: object,
+    *,
+    field_name: str,
+    error_code: str,
+    message: str | None = None,
+    details: list[ErrorDetail] | None = None,
+) -> None:
     """Ensure *value* is an integer >= 1.
 
     Raises:
@@ -48,6 +64,7 @@ def validate_positive_int(value: object, *, field_name: str, error_code: str) ->
     if not isinstance(value, int) or value < 1:
         raise ValidationError(
             error_code=error_code,
-            message=f"{field_name} must be a positive integer.",
+            message=message or f"{field_name} must be a positive integer.",
             timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            details=details,
         )
