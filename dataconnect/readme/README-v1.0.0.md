@@ -109,10 +109,12 @@ finally:
 ```
 
 #### Arguments
-- `host` (`str`): Dataconnect host.
-- `port` (`int`): Server port.
-- `use_tls` (`bool`): Enable TLS.
-- `token` (`str`): Bearer token for authorization.
+| Argument | Type | Description |
+|---|---|---|
+| `host` | `str` | Dataconnect host. |
+| `port` | `int` | Server port. |
+| `use_tls` | `bool` | Enable TLS. |
+| `token` | `str` | Bearer token for authorization. |
 
 #### Output
 - Returns: `DataconnectClient`
@@ -135,7 +137,9 @@ for study in studies:
 ```
 
 #### Arguments
-- `search_study_name` (`str | None`): Optional name filter.
+| Argument | Type | Description |
+|---|---|---|
+| `search_study_name` | `str | None` | Optional full or partial study name filter. |
 
 #### Output
 - Returns: `list[Study]`
@@ -167,10 +171,12 @@ for dataset in response.items:
 ```
 
 #### Arguments
-- `study_environment_uuid` (`UUID`): Required study environment UUID.
-- `search_dataset_name` (`str`): Full or partial dataset name filter.
-- `page` (`int`): Page number for paginated results (>=1).
-- `page_size` (`int`): Number of results per page (>=1).
+| Argument | Type | Description |
+|---|---|---|
+| `study_environment_uuid` | `UUID` | Required study environment UUID. |
+| `search_dataset_name` | `str` | Full or partial dataset name filter. |
+| `page` | `int` | Page number for paginated results (>=1). |
+| `page_size` | `int` | Number of results per page (>=1). |
 
 #### Output
 - Returns: `PaginatedResponse[Dataset]`
@@ -196,7 +202,9 @@ for version in versions:
 ```
 
 #### Arguments
-- `dataset_uuid` (`UUID`): Required dataset UUID.
+| Argument | Type | Description |
+|---|---|---|
+| `dataset_uuid` | `UUID` | Required dataset UUID. |
 
 #### Output
 - Returns: `list[DatasetVersion]`
@@ -221,8 +229,10 @@ print(df.shape)
 ```
 
 #### Arguments
-- `dataset_uuid` (`UUID`): Required dataset UUID.
-- `first_n_rows` (`int | None`): Optional positive row limit.
+| Argument | Type | Description |
+|---|---|---|
+| `dataset_uuid` | `UUID` | Required dataset UUID. |
+| `first_n_rows` | `int | None` | Optional positive row limit. |
 
 #### Output
 - Returns: `pandas.DataFrame`
@@ -239,7 +249,7 @@ Closes the underlying transport connection.
 |---|---|
 | Description | Releases network resources used by the client. |
 | Parameters | None |
-| Returns | `None` |
+| Returns | None |
 | Error handling | May raise `DataconnectError` subclasses if close fails at transport level. |
 
 Usage example:
