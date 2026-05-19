@@ -19,8 +19,11 @@ To use this library, you must have a valid iMedidata account and access to requi
 	- [get_dataset_versions()](#get_dataset_versions)
 	- [fetch_data()](#fetch_data)
 	- [close()](#close)
-- [Error Handling](#error-handling)
-- [Data Models](#data-models)
+- [Errors](#errors)
+- [Reporting known issues ](#reporting-known-issues)
+- [Backend](#backend)
+- [Versions](#versions)
+- [Licensing](#licensing)
 
 ## Environment Setup and Requirements
 
@@ -38,11 +41,13 @@ To use this library, you must have a valid iMedidata account and access to requi
 
 * **Publish data:** You must have a project token to publish a dataset from your Python environment to Medidata Data Connect. You can generate this token through Data Connect > Transformations, by creating a Custom Code project. For details, see [here](https://learn.medidata.com/en-US/bundle/data-connect/page/generate_custom_code_projects.html).
 
-## Installation
-
 # Installation
 
 To install, follow the [Installation Guide](https://github.com/mdsol/dataconnect-library-r/blob/main/vignettes/dataconnect/readme/vignettes/pythonLibrary_usage.md).
+
+## Quick Start
+
+For end-to-end examples, see the [Usage Guide](../../vignettes/pythonLibrary_usage.md).
 
 ## Functions
 
@@ -51,63 +56,39 @@ The main public entry point is `DataconnectClient`.
 ### connect()
 
 #### Description
-Creates a connected client using the default Arrow Flight transport.
+Creates a connected client.
 
 #### Usage
 `connect(host="enodia-gateway.platform.imedidata.com", port=443, use_tls=True, token="")`
 
-#### Example
-```python
-from Dataconnect import DataconnectClient
-
-client = DataconnectClient.connect(token="<access-token>")
-try:
-    studies = client.get_studies()
-finally:
-    client.close()
-```
-
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
-| host | str | Dataconnect host |
-| port | int | Server port |
-| use_tls | bool | Enable TLS |
+| host | str | Server host. Default host="enodia-gateway.platform.imedidata.com" |
+| port | int | Server port. Default port="443" |
+| use_tls | bool | Denotes whether to use TLS. Default use_tls = True |
 | token | str | Authentication token, this is the user authentication token generated from the Developer Center in Medidata Data Connect |
 
 #### Output
-- Returns: `DataconnectClient`
-
-#### Data Validation
-- Raises `AuthenticationError`, `AuthorizationError`, `NotFoundError`, `ServerError`, or `ValidationError` when the server/transport returns an error.
+DataconnectClient object. This enables you to interact with Medidata Data Connect data in Python environment.
 
 ---
 
 ### get_studies()
 
 #### Description
-Lists studies the authenticated user can access, optionally filtered by full or partial study name.
+Retrieves a list of studies where the user has permission to manage custom code projects. Use the optional study name search parameter to filter results.
 
 #### Usage
 `get_studies(search_study_name=None)`
 
-#### Example
-```python
-studies = client.get_studies(search_study_name="<search-study-name>")
-for study in studies:
-    print(study.uuid, study.name)
-```
-
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
-| search_study_name | str or None | Optional full or partial study name filter |
+| search_study_name | str or None | Optional. The approximate name of the study |
 
 #### Output
-- Returns: `list[Study]`
-
-#### Data Validation
-- Raises `DataconnectError` subclasses for server/transport failures.
+Returns a list of studies. Each study includes `name`, `uuid`, and a list of `environments`. Each environment includes `name` and `uuid`.
 
 ---
 
@@ -119,67 +100,34 @@ Retrieves datasets for a specific study environment and returns paginated result
 #### Usage
 `get_datasets(study_environment_uuid, search_dataset_name="", page=1, page_size=50)`
 
-#### Example
-```python
-from uuid import UUID
-
-response = client.get_datasets(
-    study_environment_uuid=UUID("<study-environment-uuid>"),
-    search_dataset_name="<search-dataset-name>",
-    page=1,
-    page_size=25,
-)
-
-print(response.total_records)
-for dataset in response.items:
-    print(dataset.dataset_uuid, dataset.dataset_name)
-```
-
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
 | study_environment_uuid | UUID | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details |
-| search_dataset_name | str | Full or partial dataset name filter |
-| page | int | Page number for paginated results (>=1) |
-| page_size | int | Number of results per page (>=1) |
+| search_dataset_name | str | Optional. The approximate name of the dataset |
+| page | int | Optional. Page number for paginated results. Default: 1 |
+| page_size | int | Optional. Number of results per page. Default: 50 |
 
 #### Output
 - Returns: `PaginatedResponse[Dataset]`
-
-#### Data Validation
-- Raises `ValidationError` for invalid UUID/page/page_size.
-- Raises other `DataconnectError` subclasses for service failures.
 
 ---
 
 ### get_dataset_versions()
 
 #### Description
-Retrieves all available versions for a dataset, sorted in descending version order.
+Retrieves all available versions for a dataset.
 
 #### Usage
 `get_dataset_versions(dataset_uuid)`
 
-#### Example
-```python
-from uuid import UUID
-
-versions = client.get_dataset_versions(UUID("<dataset-uuid>"))
-for version in versions:
-    print(version.dataset_name, version.dataset_version)
-```
-
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
-| dataset_uuid | UUID | Unique iMedidata dataset identifier. This is available in the output of datasets() and dataset_versions() functions |
+| dataset_uuid | UUID | Unique iMedidata dataset identifier. This is available in the output of datasets() function |
 
 #### Output
 - Returns: `list[DatasetVersion]`
-
-#### Data Validation
-- Raises `ValidationError` for invalid UUID.
-- Raises other `DataconnectError` subclasses for service failures.
 
 ---
 
@@ -191,14 +139,6 @@ Fetches dataset rows into a pandas DataFrame.
 ### Usage
 `fetch_data(dataset_uuid, first_n_rows=None)`
 
-#### Example
-```python
-from uuid import UUID
-
-df = client.fetch_data(UUID("<dataset-uuid>"), first_n_rows=100)
-print(df.shape)
-```
-
 #### Arguments
 | Argument | Type | Description |
 |---|---|---|
@@ -207,10 +147,6 @@ print(df.shape)
 
 #### Output
 - Returns: `pandas.DataFrame`
-
-#### Data Validation
-- Raises `ValidationError` for invalid `dataset_uuid` or non-positive `first_n_rows`.
-- Raises other `DataconnectError` subclasses for service failures.
 
 ### close()
 
@@ -223,61 +159,55 @@ Closes the underlying transport connection.
 | Returns | None |
 | Error handling | May raise `DataconnectError` subclasses if close fails at transport level |
 
-Example example:
+## Errors
 
-```python
-client = DataconnectClient.connect(token="<access-token>")
-try:
-	pass
-finally:
-	client.close()
-```
+R Library raises exceptions for many reasons, such as invalid parameters, authentication errors, and validation failures. We have introduced error codes for each category of errors to be handled programmatically. 
 
-## Error Handling
+| Error Code | Type | Scenario|
+| :--- | :--- |:---|
+| AUTHZ_001	| Authorization	| Authorization service check failed | 
+| VAL_002	| Validation - Page Number | Page number is not a positive integer 
+| VAL_003	| Validation - Page Size | Page size is out of range [1, 100] 
+| VAL_004	| Validation - Study Parameter | Invalid study uuid
+| VAL_005	| Validation - Study Environment Parameter | Missing or invalid study environment uuid 
+| VAL_006	| Validation - Dataset Parameter | Invalid dataset uuid
+| VAL_007	| Validation - Configuration Error | Required input parameters are missing or invalid in configuration  
+| VAL_008	| Validation - Project Token | Invalid project token 
+| VAL_009	| Validation - Unsupported Data Type | Unsupported data types.
+| VAL_010	| Validation - Unsupported Data Type | Unsupported datetime formats.
+| VAL_011	| Validation - Pagination	| Pagination is out of range
+| VAL_012	| Validation - Concurrency | Project actively being published
+| VAL_013	| Validation - Formatting Error | Data validation failed. One or more records contain formatting errors.
+| RES_002	| Resource Exceptions - Study Environment | No authorized Study Environments found for the authenticated user
+| RES_003	| Resource Exceptions - Invalid parameter | Incorrect UUID combination. 
+| RES_004	| Resource Exceptions - Invalid parameter | Incorrect UUID combination.
+| RES_005	| Resource Exceptions - Study Group |  Study Group not found for the Dataset's Study Environment. 
+| RES_006	| Resource Exceptions - Study |	Study Group not found for the Dataset's Study Environment.
+| RES_007	| Resource Exceptions - Client Division | 	Client Division not found for the Dataset's Study Environment.
+| RES_008	| Resource Exceptions - Custom Code Project | Transformation Project is not found. 
+| INT_001	| Internal Application Exception | Something went wrong on our end.
 
-All public errors inherit from `DataconnectError`.
+# Reporting known issues
 
-| Exception | Typical meaning |
-|---|---|
-| AuthenticationError | Invalid or missing credentials/token |
-| AuthorizationError | Authenticated but not allowed to access requested resource |
-| NotFoundError | Requested study/dataset/resource does not exist |
-| ServerError | Unexpected server-side failure |
-| ValidationError | Invalid inputs or malformed/invalid response payloads |
+If you believe you have found an issue, please contact Medidata Support by submitting a ticket to Medidata Support. All issue reports should include a minimal reproducible example to ensure our team can diagnose the issue.
 
-Example:
+Additionally, all known issues are available [here](https://learn.medidata.com/en-US/bundle/current-issues/page/current_known_issues_for_data_connect.html).
 
-```python
-from Dataconnect import (
-	AuthenticationError,
-	AuthorizationError,
-	DataconnectError,
-	NotFoundError,
-	ValidationError,
-)
+# Backend
 
-try:
-	studies = client.get_studies()
-except AuthenticationError as exc:
-	print("Authentication failed:", exc)
-except AuthorizationError as exc:
-	print("Not authorized:", exc)
-except NotFoundError as exc:
-	print("Resource not found:", exc)
-except ValidationError as exc:
-	print("Invalid request:", exc)
-except DataconnectError as exc:
-	print("Dataconnect request failed:", exc)
-```
+This library uses the Arrow open source library and the Iceberg open table format to enable data interoperability across platforms.
 
-## Data Models
+* [Apache arrow](https://arrow.apache.org/docs/r/): This library uses Arrow’s highly efficient format [pyarrow](https://arrow.apache.org/cookbook/py/flight.html) to transfer massive datasets over the network, allowing users to access & interact with remote datasets.  
+    
+* [Apache Iceberg](https://iceberg.apache.org/): This is the open table format underlying Medidata Data Connect's structured data management to support high-performance and reliable data analytics and storage.
 
-| Model | Fields |
-|---|---|
-| StudyEnvironment | `uuid`, `name` |
-| Study | `uuid`, `name`, `environments` |
-| Dataset | `dataset_uuid`, `study_uuid`, `study_env_uuid`, `dataset_name` |
-| DatasetVersion | `study_uuid`, `study_environment_uuid`, `dataset_uuid`, `dataset_name`, `dataset_version` |
-| Pagination | `page`, `page_size`, `total_pages` |
-| PaginatedResponse[T] | `total_records`, `pagination`, `items` |
+# Licensing
 
+BY DOWNLOADING THIS FILE (“DOWNLOAD”) YOU AGREE TO THE FOLLOWING TERMS:  
+MEDIDATA SOLUTIONS, INC. AND ITS AFFILIATES (COLLECTIVELY “MEDIDATA”) GRANT A FREE OF CHARGE, NON-EXCLUSIVE AND NON-TRANSFERABLE RIGHT TO USE THE DOWNLOAD. USE OF THIS DOWNLOAD IS PERMITTED FOR INTERNAL BUSINESS PURPOSES ONLY.   
+   
+THIS DOWNLOAD IS MADE AVAILABLE ON AN "AS IS" BASIS WITHOUT WARRANTY OF ANY KIND, WHETHER EXPRESS OR IMPLIED, ORAL OR WRITTEN, INCLUDING, WITHOUT LIMITATION, ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE OR NON-INFRINGEMENT.  
+   
+MEDIDATA SHALL HAVE NO LIABILITY FOR DIRECT, INDIRECT, INCIDENTAL, CONSEQUENTIAL OR PUNITIVE DAMAGES, INCLUDING, WITHOUT LIMITATION, CLAIMS FOR LOST PROFITS, BUSINESS INTERRUPTION AND LOSS OF DATA THAT IN ANY WAY RELATE TO THIS DOWNLOAD, WHETHER OR NOT MEDIDATA HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES AND NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY REMEDY.  
+   
+YOUR USE OF THIS DOWNLOAD SHALL BE AT YOUR SOLE RISK. NO SUPPORT OF ANY KIND OF THE DOWNLOAD IS PROVIDED BY MEDIDATA.
