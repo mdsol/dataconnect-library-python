@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.exceptions import ErrorDetail, ValidationError
+from dataconnect.exceptions import ErrorDetail
 from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Pagination, Study
 from dataconnect.service.base import DataConnectService
 from dataconnect.service.error_handler import translate_error
@@ -88,36 +87,36 @@ class DefaultDataConnectService(DataConnectService):
     def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None) -> pd.DataFrame:
         """Fetch data for a dataset"""
 
-        if not isinstance(dataset_uuid, UUID) or dataset_uuid.int == 0:
-            raise ValidationError(
-                error_code="VAL_C_DATASET_UUID",
-                message="Invalid dataset_uuid.",
-                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        validate_uuid(
+            dataset_uuid,
+            field_name="dataset_uuid",
+            error_code="VAL_C_DATASET_UUID",
+            message="Invalid dataset_uuid.",
+            details=[
+                ErrorDetail(
+                    field="dataset_uuid",
+                    message="dataset_uuid must be a valid UUID.",
+                    expected="Review and provide the correct dataset_uuid.",
+                )
+            ],
+        )
+
+        if first_n_rows is not None:
+            validate_positive_int(
+                first_n_rows,
+                field_name="first_n_rows",
+                error_code="VAL_C_FIRST_N_ROWS",
+                message="Invalid first_n_rows.",
                 details=[
                     ErrorDetail(
-                        field="dataset_uuid",
-                        message="dataset_uuid must be a valid UUID.",
-                        expected="Review and provide the correct dataset_uuid.",
+                        field="first_n_rows",
+                        message=(f"Received {first_n_rows} for first_n_rows, which is not a positive integer."),
+                        expected=(
+                            "Set first_n_rows to 1 or greater, or omit the parameter to retrieve the full dataset"
+                        ),
                     )
                 ],
             )
-
-        if first_n_rows is not None:
-            if not isinstance(first_n_rows, int) or first_n_rows < 1:
-                raise ValidationError(
-                    error_code="VAL_C_FIRST_N_ROWS",
-                    message="Invalid first_n_rows.",
-                    timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    details=[
-                        ErrorDetail(
-                            field="first_n_rows",
-                            message=f"Received {first_n_rows} for first_n_rows, which is not a positive integer.",  # noqa: E501
-                            expected=(
-                                "Set first_n_rows to 1 or greater, or omit the parameter to retrieve the full dataset"
-                            ),
-                        )
-                    ],
-                )
 
         ticket = DatasetTicket(
             dataset_uuid=str(dataset_uuid),
