@@ -112,9 +112,9 @@ def _normalize_enodia_error(error_message: str) -> str:
             raw = re.sub(r"\. Client context:.*$", "", raw)
             server_msg = raw.strip()
 
-        if server_msg:
-            payload_field = "token"
+        payload_field = "token"
 
+        if server_msg:
             if re.search("authorization header not present", server_msg, re.IGNORECASE):
                 error_code = "AUTH_E_001"
                 clean_msg = "Authentication token is missing from the request."
