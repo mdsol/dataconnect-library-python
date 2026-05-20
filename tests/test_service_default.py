@@ -3,6 +3,7 @@
 # import pytest
 
 # from dataconnect.exceptions import ValidationError
+# from dataconnect.models import StudiesResult
 # from dataconnect.service.default import DefaultDataConnectService
 # from dataconnect.transport.models import DataRef, ResourceInfo, ResourceQuery
 
@@ -20,13 +21,13 @@
 #         return None
 
 
-# def _study_resource(name: str = "Study A") -> ResourceInfo:
+# def _study_resource(name: str = "Study A", total_records: int = 1) -> ResourceInfo:
 #     payload = (f'{{"uuid":"12345678-1234-1234-1234-123456789abc","name":"{name}","environments":[]}}').encode()
 
 #     return ResourceInfo(
 #         descriptor=b"",
 #         endpoints=[DataRef(ticket=payload)],
-#         total_records=1,
+#         total_records=total_records,
 #         schema_bytes=b"",
 #     )
 
@@ -35,54 +36,49 @@
 #     transport = StubTransport(resources=[_study_resource()])
 #     service = DefaultDataConnectService(transport)
 
-#     studies = service.get_studies()
+#     result = service.get_studies()
 
-#     assert len(studies) == 1
-#     assert studies[0].name == "Study A"
+#     assert isinstance(result, StudiesResult)
+#     assert result.total == 1
+#     assert len(result.studies) == 1
+#     assert result.studies[0].name == "Study A"
 #     assert transport.last_request is not None
 #     assert transport.last_request.action == "studies.list"
 #     assert transport.last_request.body == ""
 
 
 # def test_get_studies_with_search_name_sets_request_body() -> None:
-#     transport = StubTransport(resources=[_study_resource("Cardio Study")])
+#     transport = StubTransport(resources=[_study_resource("Cardio Study", total_records=5)])
 #     service = DefaultDataConnectService(transport)
 
-#     studies = service.get_studies(search_study_name="Cardio")
+#     result = service.get_studies(search_study_name="Cardio")
 
-#     assert len(studies) == 1
-#     assert studies[0].name == "Cardio Study"
+#     assert isinstance(result, StudiesResult)
+#     assert result.total == 5
+#     assert len(result.studies) == 1
+#     assert result.studies[0].name == "Cardio Study"
 #     assert transport.last_request is not None
 #     assert transport.last_request.body == '{"search_study_name":"Cardio"}'
 
 
-# def test_get_studies_rejects_non_string_search_name() -> None:
+# def test_get_studies_returns_zero_total_when_no_resources() -> None:
 #     transport = StubTransport(resources=[])
 #     service = DefaultDataConnectService(transport)
 
-#     with pytest.raises(ValidationError, match="search_study_name must be a string"):
-#         service.get_studies(search_study_name=123)  # type: ignore[arg-type]
+#     result = service.get_studies()
 
-#     assert transport.last_request is None
+#     assert isinstance(result, StudiesResult)
+#     assert result.total == 0
+#     assert result.studies == []
 
 
 # def test_get_studies_accepts_none_search_name() -> None:
 #     transport = StubTransport(resources=[_study_resource()])
 #     service = DefaultDataConnectService(transport)
 
-#     studies = service.get_studies(search_study_name=None)
+#     result = service.get_studies(search_study_name=None)
 
-#     assert len(studies) == 1
+#     assert isinstance(result, StudiesResult)
+#     assert len(result.studies) == 1
 #     assert transport.last_request is not None
 #     assert transport.last_request.body == ""
-
-# def test_get_dataset_versions_sorted(monkeypatch):
-#     service = DefaultDataConnectService(transport=DummyTransport())
-#     # Patch the mapping function to our dummy
-#     monkeypatch.setattr(
-#         "dataconnect.service.default.resource_to_dataset_version",
-#         dummy_resource_to_dataset_version,
-#     )
-#     result = service.get_dataset_versions(UUID("073410b6-79be-3e7d-ae37-92f6e054013e"))
-#     versions = [dv.dataset_version for dv in result]
-#     assert versions == sorted(versions, reverse=True)

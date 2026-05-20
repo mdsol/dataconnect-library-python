@@ -36,7 +36,9 @@ with DataConnectClient.connect(
     token="your-bearer-token",
 ) as client:
 
-    studies = client.get_studies(search_study_name="ACME")
+    result = client.get_studies(search_study_name="ACME")
+    print(result.total)    # total number of studies accessible to the user
+    print(result.studies)  # list of Study objects
 
     pagination = client.get_datasets(study_environment_uuid=UUID("cec9f2a7-07ba-4fa8-bfcf-34fbc5d56793"))
     datasets = pagination.items

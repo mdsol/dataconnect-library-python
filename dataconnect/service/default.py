@@ -7,7 +7,7 @@ from uuid import UUID
 import pandas as pd
 
 from dataconnect.exceptions import ErrorDetail
-from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Pagination, Study
+from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Pagination, StudiesResult, Study
 from dataconnect.service.base import DataConnectService
 from dataconnect.service.error_handler import translate_error
 from dataconnect.service.mappers import (
@@ -35,7 +35,7 @@ class DefaultDataConnectService(DataConnectService):
 
     # DataConnectService
 
-    def get_studies(self, search_study_name: str | None = None) -> list[Study]:
+    def get_studies(self, search_study_name: str | None = None) -> StudiesResult:
         """List studies the authenticated user can access.
 
         Args:
@@ -52,7 +52,9 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             resources = self._transport.list_resources(request)
-            return [resource_to_study(r) for r in resources]
+            total = resources[0].total_records if resources else 0
+            studies = [resource_to_study(r) for r in resources]
+            return StudiesResult(total=total, studies=studies)
         except Exception as ex:
             raise translate_error(ex) from ex
 

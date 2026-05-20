@@ -7,14 +7,14 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Study
+from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, StudiesResult, Study
 
 
 class DataConnectService(ABC):
     """Abstract service interface — defines all operations available to the client."""
 
     @abstractmethod
-    def get_studies(self, search_study_name: str | None = None) -> list[Study]: ...
+    def get_studies(self, search_study_name: str | None = None) -> StudiesResult: ...
 
     @abstractmethod
     def get_datasets(
