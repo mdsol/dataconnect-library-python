@@ -66,9 +66,8 @@ class DefaultDataConnectService(DataConnectService):
             A list of :class:`DatasetVersion` objects for the given dataset.
 
         Raises:
-            ValidationError: If *dataset_uuid* is not a valid, non-zero UUID.
+            ValidationError: If *dataset_uuid* is not a valid UUID (upstream).
         """
-        validate_uuid(dataset_uuid, field_name="dataset_uuid", error_code="VAL_C_DATASET_UUID")
 
         request = ResourceQuery(action=_ACTION_LIST_DATASET_VERSIONS).append_body({"dataset_uuid": str(dataset_uuid)})
 
@@ -147,9 +146,6 @@ class DefaultDataConnectService(DataConnectService):
         Returns:
             A :class:`PaginatedResponse` of :class:`Dataset` items matching the criteria.
         """
-        validate_uuid(study_environment_uuid, field_name="study_environment_uuid", error_code="VAL_C_STUDY_ENV_UUID")
-        validate_positive_int(page, field_name="page", error_code="VAL_C_PAGE")
-        validate_positive_int(page_size, field_name="page_size", error_code="VAL_C_PAGE_SIZE")
 
         request = ResourceQuery(action=_ACTION_LIST_DATASETS).append_body(
             {

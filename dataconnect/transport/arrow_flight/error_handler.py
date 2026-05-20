@@ -72,10 +72,15 @@ _AUTH_DETAIL_MSG = (
     "Data Connect > Developer Center."
 )
 
+_AUTH_HOST_MSG = (
+    "Verify that the host URL is correct and that your network "
+    "allows outbound connections to the specified host and port."
+)
+
 _RATE_LIMIT_DETAIL_MSG = "Wait before making more requests."
 
 _ENODIA_PATTERN = re.compile(
-    r"FlightUnauthenticatedError|Flight returned unauthenticated error",
+    r"FlightUnauthenticatedError|Flight returned unauthenticated error|Flight returned unavailable error",
     re.IGNORECASE,
 )
 
@@ -108,6 +113,8 @@ def _normalize_enodia_error(error_message: str) -> str:
             server_msg = raw.strip()
 
         if server_msg:
+            payload_field = "token"
+
             if re.search("authorization header not present", server_msg, re.IGNORECASE):
                 error_code = "AUTH_E_001"
                 clean_msg = "Authentication token is missing from the request."
@@ -124,6 +131,11 @@ def _normalize_enodia_error(error_message: str) -> str:
                 error_code = "AUTH_E_004"
                 clean_msg = "Rate limit exceeded."
                 detail_expected = _RATE_LIMIT_DETAIL_MSG
+            elif re.search("errors resolving", server_msg, re.IGNORECASE):
+                error_code = "AUTH_E_005"
+                clean_msg = "Hostname lookup failed."
+                detail_expected = _AUTH_HOST_MSG
+                payload_field = "host"
             else:
                 error_code = "AUTH_E_001"
                 clean_msg = "Authentication token is missing from the request."
@@ -139,7 +151,7 @@ def _normalize_enodia_error(error_message: str) -> str:
             "error_code": error_code,
             "message": clean_msg,
             "timestamp": timestamp,
-            "details": [{"field": "token", "message": None, "expected": detail_expected}],
+            "details": [{"field": payload_field, "message": None, "expected": detail_expected}],
         }
         json_payload = json.dumps(payload)
 
