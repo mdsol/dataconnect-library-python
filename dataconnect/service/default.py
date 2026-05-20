@@ -7,7 +7,7 @@ from uuid import UUID
 import pandas as pd
 
 from dataconnect.exceptions import ErrorDetail
-from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Pagination, StudiesResult, Study
+from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Pagination, StudiesResult
 from dataconnect.service.base import DataConnectService
 from dataconnect.service.error_handler import translate_error
 from dataconnect.service.mappers import (
@@ -16,7 +16,7 @@ from dataconnect.service.mappers import (
     resource_to_fetched_data,
     resource_to_study,
 )
-from dataconnect.service.validators import validate_positive_int, validate_uuid
+from dataconnect.service.validators import validate_positive_int, validate_search_study_name, validate_uuid
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import TransportError
 from dataconnect.transport.models import DatasetTicket, ResourceQuery
@@ -42,9 +42,10 @@ class DefaultDataConnectService(DataConnectService):
             search_study_name: Optional full or partial study name filter.
 
         Returns:
-            A list of :class:`Study` objects matching the criteria.
+            A :class:`StudiesResult` containing:
+            - ``total``: total number of studies accessible to the authenticated user.
+            - ``studies``: list of :class:`Study` objects matching the criteria.
         """
-        # validate_search_study_name(search_study_name)
 
         request = ResourceQuery(action=_ACTION_LIST_STUDIES)
         if search_study_name and search_study_name.strip() != "":

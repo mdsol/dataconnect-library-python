@@ -12,7 +12,7 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, StudiesResult, Study
+from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, StudiesResult
 from dataconnect.service import DataConnectService, DefaultDataConnectService
 
 _DEFAULT_HOST = "enodia-gateway.platform.imedidata.com"
