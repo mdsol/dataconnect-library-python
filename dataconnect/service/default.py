@@ -16,7 +16,7 @@ from dataconnect.service.mappers import (
     resource_to_fetched_data,
     resource_to_study,
 )
-from dataconnect.service.validators import validate_positive_int, validate_search_study_name, validate_uuid
+from dataconnect.service.validators import validate_positive_int, validate_uuid
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import TransportError
 from dataconnect.transport.models import DatasetTicket, ResourceQuery
