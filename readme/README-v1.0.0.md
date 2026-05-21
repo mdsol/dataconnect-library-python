@@ -1,6 +1,6 @@
-# Dataconnect Python Library v1.0.0
+# DataConnect Python Library v1.0.0
 
-The Dataconnect Python library provides a Python client for connecting to Medidata Dataconnect and retrieving relevant data programmatically.
+The DataConnect Python library provides a Python client for connecting to Medidata DataConnect and retrieving relevant data programmatically.
 To use this library, you must have a valid iMedidata account and access to required building blocks in the Medidata Platform. For details, see the Medidata [Knowledge Hub](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html).
 
 ## Table of Contents
@@ -25,29 +25,19 @@ To use this library, you must have a valid iMedidata account and access to requi
 - [Versions](#versions)
 - [Licensing](#licensing)
 
-## Environment Setup and Requirements
+## Installation
 
-### System Requirements
-
-| Requirement       | Version / Notes          |
-|-------------------|--------------------------|
-| Python            | 3.13                     |
-| Operating systems | macOS, Linux, Windows    |
-| Core dependencies | pyarrow 19.x, pandas 2.x |
-
-### Authentication and Connectivity
-
-* **Retrieving data:** You must have a user token to establish a connection between your Python environment and Medidata Data Connect. You can generate this token through Data Connect’s Developer Center. For details, see [here](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html). Medidata recommends that you save the token in a separate file and input it into the below initiation function.
-
-* **Publish data:** You must have a project token to publish a dataset from your Python environment to Medidata Data Connect. You can generate this token through Data Connect > Transformations, by creating a Custom Code project. For details, see [here](https://learn.medidata.com/en-US/bundle/data-connect/page/generate_custom_code_projects.html).
-
-# Installation
-
-To install, follow the [Installation Guide](https://github.com/mdsol/dataconnect-library-r/blob/main/vignettes/dataconnect/readme/vignettes/pythonLibrary_usage.md).
+To install, follow the [Installation Guide](https://github.com/mdsol/dataconnect-library-r/blob/main/vignettes/dataconnect/readme/vignettes/pythonLibrary_setup.md).
 
 ## Quick Start
 
-For end-to-end examples, see the [Usage Guide](../../vignettes/pythonLibrary_usage.md).
+For end-to-end examples, see the [Usage Guide]().
+
+### Authentication and Connectivity
+
+* **Retrieving data:** You must have a user token to establish a connection between your Python environment and Medidata Data Connect. You can generate this token through Data Connect’s Developer Center. For details, visit the [knowledge hub](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html). Medidata recommends that you save the token in a local file and input it into the below initiation function.
+
+* **Publish data:** You must have a project token to publish a dataset from your Python environment to Medidata Data Connect. You can generate this token through Data Connect > Transformations, by creating a Custom Code project. For details, visit the [knowledge hub](https://learn.medidata.com/en-US/bundle/data-connect/page/generate_custom_code_projects.html).
 
 ## Functions
 
@@ -59,7 +49,7 @@ The main public entry point is `DataconnectClient`.
 Creates a connected client.
 
 #### Usage
-`connect(host="enodia-gateway.platform.imedidata.com", port=443, use_tls=True, token="")`
+`connect(token="")`
 
 #### Arguments
 | Argument | Type | Description |
@@ -88,7 +78,7 @@ Retrieves a list of studies where the user has permission to manage custom code 
 | search_study_name | str or None | Optional. The approximate name of the study |
 
 #### Output
-Returns a list of studies. Each study includes `name`, `uuid`, and a list of `environments`. Each environment includes `name` and `uuid`.
+Returns a list containing `total_records` (total studies available) and a `studies` array. Each study includes `name`, `uuid`, and an environments array. Each environment includes `name` and `uuid`.
 
 ---
 
@@ -109,7 +99,7 @@ Retrieves datasets for a specific study environment and returns paginated result
 | page_size | int | Optional. Number of results per page. Default: 50 |
 
 #### Output
-- Returns: `PaginatedResponse[Dataset]`
+Returns a list containing `total_records` (total datasets available across all pages), `pagination` and `datasets` array.
 
 ---
 
@@ -127,7 +117,7 @@ Retrieves all available versions for a dataset.
 | dataset_uuid | UUID | Unique iMedidata dataset identifier. This is available in the output of datasets() function |
 
 #### Output
-- Returns: `list[DatasetVersion]`
+Returns all available versions of the dataset.
 
 ---
 
@@ -136,7 +126,7 @@ Retrieves all available versions for a dataset.
 #### Description
 Fetches dataset rows into a pandas DataFrame.
 
-### Usage
+#### Usage
 `fetch_data(dataset_uuid, first_n_rows=None)`
 
 #### Arguments
@@ -146,22 +136,26 @@ Fetches dataset rows into a pandas DataFrame.
 | first_n_rows | int or None | Optional positive row limit |
 
 #### Output
-- Returns: `pandas.DataFrame`
+Returns data from a specific dataset.
+
+---
 
 ### close()
 
+#### Description
 Closes the underlying transport connection.
 
-| Item | Details |
-|---|---|
-| Description | Releases network resources used by the client |
-| Parameters | None |
-| Returns | None |
-| Error handling | May raise `DataconnectError` subclasses if close fails at transport level |
+#### Usage
+`close()`
+
+#### Arguments
+None
+
+#### Output
+None
 
 ## Errors
-
-R Library raises exceptions for many reasons, such as invalid parameters, authentication errors, and validation failures. We have introduced error codes for each category of errors to be handled programmatically. 
+The library raises exceptions for many reasons, such as invalid parameters, authentication errors, and validation failures. We have introduced error codes for each category of errors to be handled programmatically. 
 
 | Error Code | Type | Scenario|
 | :--- | :--- |:---|
