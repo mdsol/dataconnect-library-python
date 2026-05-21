@@ -119,11 +119,6 @@ def test_fetch_data_returns_empty_dataframe_for_empty_table() -> None:
     assert "col" in result.columns
 
 
-# ---------------------------------------------------------------------------
-# Transport-error translation
-# ---------------------------------------------------------------------------
-
-
 def test_fetch_data_translates_authentication_error() -> None:
     dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
     transport = _FakeTransport(
