@@ -21,6 +21,12 @@ class Study:
 
 
 @dataclass(frozen=True)
+class StudiesResult:
+    total: int
+    studies: list[Study]
+
+
+@dataclass(frozen=True)
 class DatasetVersion:
     study_uuid: UUID
     study_environment_uuid: UUID

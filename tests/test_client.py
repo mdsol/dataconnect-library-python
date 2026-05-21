@@ -1,14 +1,14 @@
 # from __future__ import annotations
 
-# import sys
-# from types import ModuleType
+# # import sys
+# # from types import ModuleType
 # from uuid import UUID
 
-# import pandas as pd
-# import pytest
+# # import pandas as pd
+# # import pytest
 
 # from dataconnect.client import DataConnectClient
-# from dataconnect.models import Dataset, DatasetVersion, Study
+# from dataconnect.models import Dataset, DatasetVersion, Study, StudiesResult
 
 
 # def _make_dataframe() -> pd.DataFrame:
@@ -160,9 +160,9 @@
 #         self.search_study_name: str | None = None
 #         self.was_closed = False
 
-#     def get_studies(self, search_study_name: str | None = None) -> list[Study]:
+#     def get_studies(self, search_study_name: str | None = None) -> StudiesResult:
 #         self.search_study_name = search_study_name
-#         return []
+#         return StudiesResult(total=0, studies=[])
 
 #     def close(self) -> None:
 #         self.was_closed = True
@@ -172,9 +172,11 @@
 #     service = StubService()
 #     client = DataConnectClient(service)
 
-#     studies = client.get_studies()
+#     result = client.get_studies()
 
-#     assert studies == []
+#     assert isinstance(result, StudiesResult)
+#     assert result.total == 0
+#     assert result.studies == []
 #     assert service.search_study_name is None
 
 
@@ -182,9 +184,11 @@
 #     service = StubService()
 #     client = DataConnectClient(service)
 
-#     studies = client.get_studies(search_study_name="cardio")
+#     result = client.get_studies(search_study_name="cardio")
 
-#     assert studies == []
+#     assert isinstance(result, StudiesResult)
+#     assert result.total == 0
+#     assert result.studies == []
 #     assert service.search_study_name == "cardio"
 
 
