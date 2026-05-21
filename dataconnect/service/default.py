@@ -6,8 +6,7 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.exceptions import ErrorDetail
-from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Pagination, Study
+from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Pagination, StudiesResult
 from dataconnect.service.base import DataConnectService
 from dataconnect.service.error_handler import translate_error
 from dataconnect.service.mappers import (
@@ -16,7 +15,6 @@ from dataconnect.service.mappers import (
     resource_to_fetched_data,
     resource_to_study,
 )
-from dataconnect.service.validators import validate_positive_int, validate_uuid
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import TransportError
 from dataconnect.transport.models import DatasetTicket, ResourceQuery
@@ -35,16 +33,17 @@ class DefaultDataConnectService(DataConnectService):
 
     # DataConnectService
 
-    def get_studies(self, search_study_name: str | None = None) -> list[Study]:
+    def get_studies(self, search_study_name: str | None = None) -> StudiesResult:
         """List studies the authenticated user can access.
 
         Args:
             search_study_name: Optional full or partial study name filter.
 
         Returns:
-            A list of :class:`Study` objects matching the criteria.
+            A :class:`StudiesResult` containing:
+            - ``total``: total number of studies accessible to the authenticated user.
+            - ``studies``: list of :class:`Study` objects matching the criteria.
         """
-        # validate_search_study_name(search_study_name)
 
         request = ResourceQuery(action=_ACTION_LIST_STUDIES)
         if search_study_name and search_study_name.strip() != "":
@@ -52,7 +51,9 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             resources = self._transport.list_resources(request)
-            return [resource_to_study(r) for r in resources]
+            total = resources[0].total_records if resources else 0
+            studies = [resource_to_study(r) for r in resources]
+            return StudiesResult(total=total, studies=studies)
         except Exception as ex:
             raise translate_error(ex) from ex
 
@@ -66,9 +67,8 @@ class DefaultDataConnectService(DataConnectService):
             A list of :class:`DatasetVersion` objects for the given dataset.
 
         Raises:
-            ValidationError: If *dataset_uuid* is not a valid, non-zero UUID.
+            ValidationError: If *dataset_uuid* is not a valid UUID (upstream).
         """
-        validate_uuid(dataset_uuid, field_name="dataset_uuid", error_code="VAL_C_DATASET_UUID")
 
         request = ResourceQuery(action=_ACTION_LIST_DATASET_VERSIONS).append_body({"dataset_uuid": str(dataset_uuid)})
 
@@ -86,37 +86,6 @@ class DefaultDataConnectService(DataConnectService):
 
     def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None) -> pd.DataFrame:
         """Fetch data for a dataset"""
-
-        validate_uuid(
-            dataset_uuid,
-            field_name="dataset_uuid",
-            error_code="VAL_C_DATASET_UUID",
-            message="Invalid dataset_uuid.",
-            details=[
-                ErrorDetail(
-                    field="dataset_uuid",
-                    message="dataset_uuid must be a valid UUID.",
-                    expected="Review and provide the correct dataset_uuid.",
-                )
-            ],
-        )
-
-        if first_n_rows is not None:
-            validate_positive_int(
-                first_n_rows,
-                field_name="first_n_rows",
-                error_code="VAL_C_FIRST_N_ROWS",
-                message="Invalid first_n_rows.",
-                details=[
-                    ErrorDetail(
-                        field="first_n_rows",
-                        message=(f"Received {first_n_rows} for first_n_rows, which is not a positive integer."),
-                        expected=(
-                            "Set first_n_rows to 1 or greater, or omit the parameter to retrieve the full dataset"
-                        ),
-                    )
-                ],
-            )
 
         ticket = DatasetTicket(
             dataset_uuid=str(dataset_uuid),
@@ -147,9 +116,6 @@ class DefaultDataConnectService(DataConnectService):
         Returns:
             A :class:`PaginatedResponse` of :class:`Dataset` items matching the criteria.
         """
-        validate_uuid(study_environment_uuid, field_name="study_environment_uuid", error_code="VAL_C_STUDY_ENV_UUID")
-        validate_positive_int(page, field_name="page", error_code="VAL_C_PAGE")
-        validate_positive_int(page_size, field_name="page_size", error_code="VAL_C_PAGE_SIZE")
 
         request = ResourceQuery(action=_ACTION_LIST_DATASETS).append_body(
             {

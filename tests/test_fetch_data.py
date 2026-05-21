@@ -13,7 +13,6 @@ from dataconnect.exceptions import (
     AuthorizationError,
     NotFoundError,
     ServerError,
-    ValidationError,
 )
 from dataconnect.service.default import DefaultDataConnectService
 from dataconnect.transport.errors import (
@@ -118,86 +117,6 @@ def test_fetch_data_returns_empty_dataframe_for_empty_table() -> None:
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 0
     assert "col" in result.columns
-
-
-# ---------------------------------------------------------------------------
-# Validation — dataset_uuid
-# ---------------------------------------------------------------------------
-
-
-def test_fetch_data_raises_validation_error_on_none_uuid() -> None:
-    transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}))
-    service = DefaultDataConnectService(transport)
-
-    with pytest.raises(ValidationError) as exc_info:
-        service.fetch_data(None)  # type: ignore[arg-type]
-
-    assert exc_info.value.error_code == "VAL_C_DATASET_UUID"
-
-
-def test_fetch_data_raises_validation_error_on_zero_uuid() -> None:
-    transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}))
-    service = DefaultDataConnectService(transport)
-
-    with pytest.raises(ValidationError) as exc_info:
-        service.fetch_data(UUID(int=0))
-
-    assert exc_info.value.error_code == "VAL_C_DATASET_UUID"
-
-
-def test_fetch_data_raises_validation_error_on_string_uuid() -> None:
-    transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}))
-    service = DefaultDataConnectService(transport)
-
-    with pytest.raises(ValidationError) as exc_info:
-        service.fetch_data("073410b6-79be-3e7d-ae37-92f6e054013e")  # type: ignore[arg-type]
-
-    assert exc_info.value.error_code == "VAL_C_DATASET_UUID"
-
-
-# ---------------------------------------------------------------------------
-# Validation — first_n_rows
-# ---------------------------------------------------------------------------
-
-
-def test_fetch_data_raises_validation_error_on_zero_first_n_rows() -> None:
-    dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
-    transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}))
-    service = DefaultDataConnectService(transport)
-
-    with pytest.raises(ValidationError) as exc_info:
-        service.fetch_data(dataset_uuid, first_n_rows=0)
-
-    assert exc_info.value.error_code == "VAL_C_FIRST_N_ROWS"
-    assert exc_info.value.details is not None
-    assert exc_info.value.details[0].field == "first_n_rows"
-
-
-def test_fetch_data_raises_validation_error_on_negative_first_n_rows() -> None:
-    dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
-    transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}))
-    service = DefaultDataConnectService(transport)
-
-    with pytest.raises(ValidationError) as exc_info:
-        service.fetch_data(dataset_uuid, first_n_rows=-5)
-
-    assert exc_info.value.error_code == "VAL_C_FIRST_N_ROWS"
-
-
-def test_fetch_data_raises_validation_error_on_non_int_first_n_rows() -> None:
-    dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
-    transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}))
-    service = DefaultDataConnectService(transport)
-
-    with pytest.raises(ValidationError) as exc_info:
-        service.fetch_data(dataset_uuid, first_n_rows="abc")  # type: ignore[arg-type]
-
-    assert exc_info.value.error_code == "VAL_C_FIRST_N_ROWS"
-
-
-# ---------------------------------------------------------------------------
-# Transport-error translation
-# ---------------------------------------------------------------------------
 
 
 def test_fetch_data_translates_authentication_error() -> None:

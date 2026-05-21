@@ -12,7 +12,7 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Study
+from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, StudiesResult
 from dataconnect.service import DataConnectService, DefaultDataConnectService
 
 _DEFAULT_HOST = "enodia-gateway.platform.imedidata.com"
@@ -45,7 +45,7 @@ class DataConnectClient:
 
     # Public API
 
-    def get_studies(self, search_study_name: str | None = None) -> list[Study]:
+    def get_studies(self, search_study_name: str | None = None) -> StudiesResult:
         """List the studies the client is authorized to access."""
         return self._service.get_studies(search_study_name=search_study_name)
 
