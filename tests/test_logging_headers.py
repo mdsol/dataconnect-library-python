@@ -85,9 +85,10 @@ def test_sdk_type_remains_python_across_different_sdk_versions(
 @patch("pyarrow.flight.FlightClient")
 def test_client_ip_falls_back_to_localhost_on_socket_error(mock_flight_client: MagicMock) -> None:
     """AC-04: Verifică dacă IP-ul face fallback pe 127.0.0.1 când mașina e offline."""
-    with patch("socket.socket.connect", side_effect=OSError("No network")), \
-         patch("dataconnect.transport.arrow_flight.transport.version", return_value="1.0.0"):
-
+    with (
+        patch("socket.socket.connect", side_effect=OSError("No network")),
+        patch("dataconnect.transport.arrow_flight.transport.version", return_value="1.0.0"),
+    ):
         client = DataConnectClient.connect(
             host="localhost",
             port=8888,

@@ -41,9 +41,7 @@ class DataConnectClient:
         from dataconnect.transport.arrow_flight.transport import ArrowFlightTransport
 
         # transport = ArrowFlightTransport(host=host, port=port, use_tls=use_tls, token=token)
-        transport = ArrowFlightTransport(
-            host=host, port=port, use_tls=use_tls, token=token, user_uuid=user_uuid
-        )
+        transport = ArrowFlightTransport(host=host, port=port, use_tls=use_tls, token=token, user_uuid=user_uuid)
 
         return cls(DefaultDataConnectService(transport))
 
