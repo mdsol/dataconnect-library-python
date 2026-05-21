@@ -155,30 +155,30 @@ None
 None
 
 ## Errors
-The library raises exceptions for many reasons, such as invalid parameters, authentication errors, and validation failures. We have introduced error codes for each category of errors to be handled programmatically. 
+The library raises exceptions for many reasons, such as invalid parameters, authentication errors, and validation failures. We have introduced error codes for each category of errors to be handled programmatically.
 
 | Error Code | Type | Scenario|
 | :--- | :--- |:---|
-| AUTHZ_001	| Authorization	| Authorization service check failed | 
-| VAL_002	| Validation - Page Number | Page number is not a positive integer 
-| VAL_003	| Validation - Page Size | Page size is out of range [1, 100] 
+| AUTHZ_001	| Authorization	| Authorization service check failed |
+| VAL_002	| Validation - Page Number | Page number is not a positive integer
+| VAL_003	| Validation - Page Size | Page size is out of range [1, 100]
 | VAL_004	| Validation - Study Parameter | Invalid study uuid
-| VAL_005	| Validation - Study Environment Parameter | Missing or invalid study environment uuid 
+| VAL_005	| Validation - Study Environment Parameter | Missing or invalid study environment uuid
 | VAL_006	| Validation - Dataset Parameter | Invalid dataset uuid
-| VAL_007	| Validation - Configuration Error | Required input parameters are missing or invalid in configuration  
-| VAL_008	| Validation - Project Token | Invalid project token 
+| VAL_007	| Validation - Configuration Error | Required input parameters are missing or invalid in configuration
+| VAL_008	| Validation - Project Token | Invalid project token
 | VAL_009	| Validation - Unsupported Data Type | Unsupported data types.
 | VAL_010	| Validation - Unsupported Data Type | Unsupported datetime formats.
 | VAL_011	| Validation - Pagination	| Pagination is out of range
 | VAL_012	| Validation - Concurrency | Project actively being published
 | VAL_013	| Validation - Formatting Error | Data validation failed. One or more records contain formatting errors.
 | RES_002	| Resource Exceptions - Study Environment | No authorized Study Environments found for the authenticated user
-| RES_003	| Resource Exceptions - Invalid parameter | Incorrect UUID combination. 
+| RES_003	| Resource Exceptions - Invalid parameter | Incorrect UUID combination.
 | RES_004	| Resource Exceptions - Invalid parameter | Incorrect UUID combination.
-| RES_005	| Resource Exceptions - Study Group |  Study Group not found for the Dataset's Study Environment. 
+| RES_005	| Resource Exceptions - Study Group |  Study Group not found for the Dataset's Study Environment.
 | RES_006	| Resource Exceptions - Study |	Study Group not found for the Dataset's Study Environment.
 | RES_007	| Resource Exceptions - Client Division | 	Client Division not found for the Dataset's Study Environment.
-| RES_008	| Resource Exceptions - Custom Code Project | Transformation Project is not found. 
+| RES_008	| Resource Exceptions - Custom Code Project | Transformation Project is not found.
 | INT_001	| Internal Application Exception | Something went wrong on our end.
 
 # Reporting known issues
@@ -191,17 +191,17 @@ Additionally, all known issues are available [here](https://learn.medidata.com/e
 
 This library uses the Arrow open source library and the Iceberg open table format to enable data interoperability across platforms.
 
-* [Apache arrow](https://arrow.apache.org/docs/r/): This library uses Arrow’s highly efficient format [pyarrow](https://arrow.apache.org/cookbook/py/flight.html) to transfer massive datasets over the network, allowing users to access & interact with remote datasets.  
-    
+* [Apache arrow](https://arrow.apache.org/docs/r/): This library uses Arrow’s highly efficient format [pyarrow](https://arrow.apache.org/cookbook/py/flight.html) to transfer massive datasets over the network, allowing users to access & interact with remote datasets.
+
 * [Apache Iceberg](https://iceberg.apache.org/): This is the open table format underlying Medidata Data Connect's structured data management to support high-performance and reliable data analytics and storage.
 
 # Licensing
 
-BY DOWNLOADING THIS FILE (“DOWNLOAD”) YOU AGREE TO THE FOLLOWING TERMS:  
-MEDIDATA SOLUTIONS, INC. AND ITS AFFILIATES (COLLECTIVELY “MEDIDATA”) GRANT A FREE OF CHARGE, NON-EXCLUSIVE AND NON-TRANSFERABLE RIGHT TO USE THE DOWNLOAD. USE OF THIS DOWNLOAD IS PERMITTED FOR INTERNAL BUSINESS PURPOSES ONLY.   
-   
-THIS DOWNLOAD IS MADE AVAILABLE ON AN "AS IS" BASIS WITHOUT WARRANTY OF ANY KIND, WHETHER EXPRESS OR IMPLIED, ORAL OR WRITTEN, INCLUDING, WITHOUT LIMITATION, ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE OR NON-INFRINGEMENT.  
-   
-MEDIDATA SHALL HAVE NO LIABILITY FOR DIRECT, INDIRECT, INCIDENTAL, CONSEQUENTIAL OR PUNITIVE DAMAGES, INCLUDING, WITHOUT LIMITATION, CLAIMS FOR LOST PROFITS, BUSINESS INTERRUPTION AND LOSS OF DATA THAT IN ANY WAY RELATE TO THIS DOWNLOAD, WHETHER OR NOT MEDIDATA HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES AND NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY REMEDY.  
-   
+BY DOWNLOADING THIS FILE (“DOWNLOAD”) YOU AGREE TO THE FOLLOWING TERMS:
+MEDIDATA SOLUTIONS, INC. AND ITS AFFILIATES (COLLECTIVELY “MEDIDATA”) GRANT A FREE OF CHARGE, NON-EXCLUSIVE AND NON-TRANSFERABLE RIGHT TO USE THE DOWNLOAD. USE OF THIS DOWNLOAD IS PERMITTED FOR INTERNAL BUSINESS PURPOSES ONLY.
+
+THIS DOWNLOAD IS MADE AVAILABLE ON AN "AS IS" BASIS WITHOUT WARRANTY OF ANY KIND, WHETHER EXPRESS OR IMPLIED, ORAL OR WRITTEN, INCLUDING, WITHOUT LIMITATION, ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE OR NON-INFRINGEMENT.
+
+MEDIDATA SHALL HAVE NO LIABILITY FOR DIRECT, INDIRECT, INCIDENTAL, CONSEQUENTIAL OR PUNITIVE DAMAGES, INCLUDING, WITHOUT LIMITATION, CLAIMS FOR LOST PROFITS, BUSINESS INTERRUPTION AND LOSS OF DATA THAT IN ANY WAY RELATE TO THIS DOWNLOAD, WHETHER OR NOT MEDIDATA HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES AND NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY REMEDY.
+
 YOUR USE OF THIS DOWNLOAD SHALL BE AT YOUR SOLE RISK. NO SUPPORT OF ANY KIND OF THE DOWNLOAD IS PROVIDED BY MEDIDATA.
