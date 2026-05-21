@@ -33,13 +33,17 @@ class DataConnectClient:
         port: int = _DEFAULT_PORT,
         use_tls: bool = True,
         token: str = "",
+        user_uuid: str = "",
     ) -> DataConnectClient:
 
         # Import is deferred so pyarrow.flight is only loaded when this factory
         # is called — callers injecting a custom transport are unaffected.
         from dataconnect.transport.arrow_flight.transport import ArrowFlightTransport
 
-        transport = ArrowFlightTransport(host=host, port=port, use_tls=use_tls, token=token)
+        # transport = ArrowFlightTransport(host=host, port=port, use_tls=use_tls, token=token)
+        transport = ArrowFlightTransport(
+            host=host, port=port, use_tls=use_tls, token=token, user_uuid=user_uuid
+        )
 
         return cls(DefaultDataConnectService(transport))
 
