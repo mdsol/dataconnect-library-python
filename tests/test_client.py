@@ -8,7 +8,7 @@
 # # import pytest
 
 # from dataconnect.client import DataConnectClient
-# from dataconnect.models import Dataset, DatasetVersion, Study, StudiesResult
+# from dataconnect.models import StudiesResult
 
 
 # def _make_dataframe() -> pd.DataFrame:
@@ -162,7 +162,7 @@
 
 #     def get_studies(self, search_study_name: str | None = None) -> StudiesResult:
 #         self.search_study_name = search_study_name
-#         return StudiesResult(total=0, studies=[])
+#         return StudiesResult(total_records=0, studies=[])
 
 #     def close(self) -> None:
 #         self.was_closed = True
@@ -175,7 +175,7 @@
 #     result = client.get_studies()
 
 #     assert isinstance(result, StudiesResult)
-#     assert result.total == 0
+#     assert result.total_records == 0
 #     assert result.studies == []
 #     assert service.search_study_name is None
 
@@ -187,7 +187,7 @@
 #     result = client.get_studies(search_study_name="cardio")
 
 #     assert isinstance(result, StudiesResult)
-#     assert result.total == 0
+#     assert result.total_records == 0
 #     assert result.studies == []
 #     assert service.search_study_name == "cardio"
 

@@ -22,7 +22,7 @@ class Study:
 
 @dataclass(frozen=True)
 class StudiesResult:
-    total: int
+    total_records: int
     studies: list[Study]
 
 

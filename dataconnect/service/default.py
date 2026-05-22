@@ -41,19 +41,18 @@ class DefaultDataConnectService(DataConnectService):
 
         Returns:
             A :class:`StudiesResult` containing:
-            - ``total``: total number of studies accessible to the authenticated user.
+            - ``total_records``: total number of studies accessible to the authenticated user.
             - ``studies``: list of :class:`Study` objects matching the criteria.
         """
 
         request = ResourceQuery(action=_ACTION_LIST_STUDIES)
-        if search_study_name and search_study_name.strip() != "":
-            request = request.append_body({"search_study_name": search_study_name})
+        request = request.append_body({"search_study_name": search_study_name})
 
         try:
             resources = self._transport.list_resources(request)
-            total = resources[0].total_records if resources else 0
+            total_records = resources[0].total_records if resources else 0
             studies = [resource_to_study(r) for r in resources]
-            return StudiesResult(total=total, studies=studies)
+            return StudiesResult(total_records=total_records, studies=studies)
         except Exception as ex:
             raise translate_error(ex) from ex
 
