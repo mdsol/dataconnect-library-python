@@ -11,7 +11,7 @@ from dataconnect.exceptions import (
     ServerError,
     ValidationError,
 )
-from dataconnect.models import DatasetVersion, PaginatedResponse, Pagination, Study, StudyEnvironment
+from dataconnect.models import DatasetVersion, DryPublishResult, PaginatedResponse, Pagination, Study, StudyEnvironment
 
 __all__ = [
     # Client
@@ -20,6 +20,7 @@ __all__ = [
     "Study",
     "StudyEnvironment",
     "DatasetVersion",
+    "DryPublishResult",
     "PaginatedResponse",
     "Pagination",
     # Exceptions — catch these in user application code

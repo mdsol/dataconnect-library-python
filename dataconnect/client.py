@@ -12,7 +12,7 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, StudiesResult
+from dataconnect.models import Dataset, DatasetVersion, DryPublishResult, PaginatedResponse, StudiesResult
 from dataconnect.service import DataConnectService, DefaultDataConnectService
 
 _DEFAULT_HOST = "enodia-gateway.platform.imedidata.com"
@@ -85,6 +85,25 @@ class DataConnectClient:
             search_dataset_name=search_dataset_name,
             page=page,
             page_size=page_size,
+        )
+
+    def dry_publish(
+        self,
+        project_token: str,
+        dataset_name: str,
+        key_columns: list[str],
+        source_datasets: list[UUID],
+        data: pd.DataFrame,
+        datetime_formats: dict[str, str] | None = None,
+    ) -> DryPublishResult:
+
+        return self._service.dry_publish(
+            project_token=project_token,
+            dataset_name=dataset_name,
+            key_columns=key_columns,
+            source_datasets=source_datasets,
+            data=data,
+            datetime_formats=datetime_formats,
         )
 
     # Lifecycle
