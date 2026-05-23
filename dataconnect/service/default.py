@@ -7,11 +7,20 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.models import Dataset, DatasetVersion, DryPublishResult, PaginatedResponse, Pagination, StudiesResult
+from dataconnect.models import (
+    Dataset,
+    DatasetVersion,
+    DryPublishResult,
+    PaginatedResponse,
+    Pagination,
+    PublishResult,
+    StudiesResult,
+)
 from dataconnect.service.base import DataConnectService
 from dataconnect.service.error_handler import translate_error
 from dataconnect.service.mappers import (
     dry_publish_response_to_domain,
+    publish_response_to_domain,
     resource_to_dataset,
     resource_to_dataset_version,
     resource_to_fetched_data,
@@ -201,6 +210,68 @@ class DefaultDataConnectService(DataConnectService):
             publish_result = self._transport.dry_publish_dataset(request)
 
             return dry_publish_response_to_domain(publish_result)
+
+        except TransportError as ex:
+            raise translate_error(ex) from ex
+
+    def publish(
+        self,
+        project_token: str,
+        dataset_name: str,
+        key_columns: list[str],
+        source_datasets: list[UUID],
+        data: pd.DataFrame,
+        datetime_formats: dict[str, str] | None = None,
+    ) -> PublishResult:
+        """Publish a dataset to the server and return the result.
+
+        Encodes the publish configuration as a JSON ``input_config`` string,
+        sets ``is_dry_publish: False`` so the server treats the call as a
+        live publish run, then delegates to the transport layer.
+
+        The server response is mapped to a :class:`PublishResult` via
+        :func:`publish_response_to_domain`.
+
+        Args:
+            project_token: Base64-encoded project token identifying the target
+                study, study environment, and project.
+            dataset_name: Name of the dataset to publish.
+            key_columns: Column names that form the unique key for the dataset.
+            source_datasets: UUIDs of the source datasets the published dataset
+                is derived from.
+            data: The dataset to publish as a ``pd.DataFrame``.
+            datetime_formats: Optional mapping of column name → datetime format
+                string (e.g. ``{"visit_date": "yyyy-MM-dd"}``).  Defaults to
+                an empty dict when omitted.
+
+        Returns:
+            A :class:`PublishResult` containing the server's publish outcome,
+            including dataset UUID, version, and record counts.
+
+        Raises:
+            DataConnectError: Any :class:`TransportError` from the transport
+                layer is translated by :func:`translate_error` into the public
+                API's :class:`DataConnectError` hierarchy before propagating.
+        """
+        request = PublishRequest(
+            input_config=json.dumps(
+                {
+                    "is_dry_publish": False,
+                    "project_token": project_token,
+                    "dataset_name": dataset_name,
+                    "dataset_description": dataset_name,
+                    "key_columns": key_columns,
+                    "source_datasets": [str(uuid) for uuid in source_datasets],
+                    "datetime_formats": datetime_formats or {},
+                }
+            ),
+            data=data,
+        )
+
+        try:
+            publish_result = self._transport.publish_dataset(request)
+
+            return publish_response_to_domain(publish_result)
 
         except TransportError as ex:
             raise translate_error(ex) from ex

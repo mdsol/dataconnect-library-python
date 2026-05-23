@@ -12,6 +12,7 @@ from dataconnect.transport.models import (
     DataTable,
     DryPublishResponse,
     PublishRequest,
+    PublishResponse,
     ResourceInfo,
     ResourceQuery,
 )
@@ -24,5 +25,6 @@ __all__ = [
     "DatasetTicket",
     "DataTable",
     "PublishRequest",
+    "PublishResponse",
     "DryPublishResponse",
 ]

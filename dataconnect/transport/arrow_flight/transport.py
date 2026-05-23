@@ -28,6 +28,7 @@ from dataconnect.transport.models import (
     DataTable,
     DryPublishResponse,
     PublishRequest,
+    PublishResponse,
     ResourceInfo,
     ResourceQuery,
 )
@@ -315,6 +316,70 @@ class ArrowFlightTransport(Transport):
                 valid_record_count=json_result.get("valid_record_count", 0),
                 duplicate_record_count=json_result.get("duplicate_record_count", 0),
                 invalid_record_count=json_result.get("invalid_record_count", 0),
+                invalid_records=result_table.to_pandas() if result_table else None,
+            )
+
+        except Exception as ex:
+            raise parse_dataconnect_error(ex) from ex
+
+    def publish_dataset(self, publish_request: PublishRequest) -> PublishResponse:
+        """Send a dataset to the server via Arrow Flight ``do_put`` and return the publish result.
+
+        Follows the same two-phase metadata protocol as :meth:`dry_publish_dataset`:
+        the server first returns a JSON result buffer, then an optional Arrow IPC
+        buffer containing any invalid records.
+
+        Args:
+            publish_request: A :class:`PublishRequest` carrying the encoded server
+                config (``input_config``) and the dataset as a ``pd.DataFrame``.
+
+        Returns:
+            A :class:`PublishResponse` populated from the server's JSON response,
+            including the assigned dataset UUID, version, and record counts.
+
+        Raises:
+            TransportError: Any Arrow Flight or gRPC error is translated by
+                :func:`parse_dataconnect_error` before propagating.
+        """
+        descriptor_bytes = publish_request.input_config.encode("utf-8")
+        flight_descriptor = flight.FlightDescriptor.for_path(descriptor_bytes)
+
+        arrow_table = pa.Table.from_pandas(publish_request.data, preserve_index=False)
+
+        # pa.Table.from_pandas() widens string→large_string, binary→large_binary,
+        # and list→large_list. Normalize back so the schema matches the server.
+        arrow_table = arrow_table.cast(
+            pa.schema([f.with_type(_normalize_arrow_type(f.type)) for f in arrow_table.schema])
+        )
+
+        try:
+            writer, reader = self._client.do_put(flight_descriptor, arrow_table.schema, self._options())
+
+            try:
+                for batch in arrow_table.to_batches():
+                    writer.write_batch(batch)
+                writer.done_writing()  # only signal completion when all batches succeeded
+
+                # Read while the RPC call is still open (before writer.close())
+                # The server first writes a JSON result, then the Arrow table as IPC bytes
+                _json_buf = reader.read()
+                json_result = json.loads(_json_buf.to_pybytes())
+
+                # Read the Arrow table returned by the server upon successful publishing
+                metadata_buf = reader.read()
+                result_table = pa.ipc.open_stream(pa.BufferReader(metadata_buf)).read_all() if metadata_buf else None
+            finally:
+                writer.close()  # terminates the RPC call — must happen after all reads
+
+            return PublishResponse(
+                status=json_result.get("status", False),
+                dataset_name=json_result.get("dataset_name", None),
+                dataset_uuid=json_result.get("dataset_uuid", None),
+                dataset_version=json_result.get("dataset_version", None),
+                dataset_batch_number=json_result.get("dataset_batch_number", None),
+                valid_record_count=json_result.get("valid_record_count", None),
+                duplicate_record_count=json_result.get("duplicate_record_count", None),
+                invalid_record_count=json_result.get("invalid_record_count", None),
                 invalid_records=result_table.to_pandas() if result_table else None,
             )
 

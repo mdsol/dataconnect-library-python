@@ -32,6 +32,7 @@ from dataconnect.transport.models import (
     DataTable,
     DryPublishResponse,
     PublishRequest,
+    PublishResponse,
     ResourceInfo,
     ResourceQuery,
 )
@@ -223,11 +224,14 @@ class _StubTransport(Transport):
     def get_ticket(self, ticket: DatasetTicket) -> DataTable:
         raise NotImplementedError
 
-    def dry_publish_dataset(self, request: PublishRequest) -> DryPublishResponse:
-        self.last_request = request
+    def dry_publish_dataset(self, publish_request: PublishRequest) -> DryPublishResponse:
+        self.last_request = publish_request
         if self._raise is not None:
             raise self._raise
         return self._return  # type: ignore[return-value]
+
+    def publish_dataset(self, publish_request: PublishRequest) -> PublishResponse:
+        raise NotImplementedError
 
     def close(self) -> None:
         pass
