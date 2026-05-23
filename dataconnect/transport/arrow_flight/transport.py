@@ -22,7 +22,15 @@ import pyarrow.flight as flight
 from dataconnect.transport.arrow_flight.error_handler import parse_dataconnect_error
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import TransportValidationError
-from dataconnect.transport.models import DataRef, DatasetTicket, DataTable, ResourceInfo, ResourceQuery
+from dataconnect.transport.models import (
+    DataRef,
+    DatasetTicket,
+    DataTable,
+    DryPublishResponse,
+    PublishRequest,
+    ResourceInfo,
+    ResourceQuery,
+)
 
 
 def _to_resource_info(info: flight.FlightInfo) -> ResourceInfo:
@@ -57,6 +65,25 @@ def _to_bytes(table: pa.Table) -> DataTable:
     ipc_bytes = sink.getvalue().to_pybytes()
 
     return DataTable(schema_bytes=schema_bytes, ipc_bytes=ipc_bytes)
+
+
+def _normalize_arrow_type(dtype: pa.DataType) -> pa.DataType:
+    """Recursively normalize Arrow types that widen during a pandas round-trip.
+
+    ``pa.Table.from_pandas()`` always infers the "large" variants because pandas
+    has no distinction between them:
+
+    * ``large_string``  → ``string``
+    * ``large_binary``  → ``binary``
+    * ``large_list<T>`` → ``list<T>``  (applied recursively to the value type)
+    """
+    if dtype == pa.large_utf8():
+        return pa.utf8()
+    if dtype == pa.large_binary():
+        return pa.binary()
+    if pa.types.is_large_list(dtype):
+        return pa.list_(_normalize_arrow_type(dtype.value_type))
+    return dtype
 
 
 # Maps service-layer action names to the flight_type value the Arrow Flight server expects.
@@ -210,6 +237,86 @@ class ArrowFlightTransport(Transport):
                     raise parse_dataconnect_error(ex) from ex
 
             return _to_bytes(pa.Table.from_batches(batches, schema=table.schema))
+
+        except Exception as ex:
+            raise parse_dataconnect_error(ex) from ex
+
+    def dry_publish_dataset(self, publish_request: PublishRequest) -> DryPublishResponse:
+        """Send a dataset to the server via Arrow Flight ``do_put`` and return the validation result.
+
+        The method serialises the request DataFrame to Arrow IPC, streams it to
+        the server batch-by-batch, then reads two metadata responses from the
+        server before closing the call:
+
+        1. A JSON buffer containing validation fields (status, error lists, …).
+        2. An optional Arrow IPC buffer containing the invalid-records table
+           (``None`` when all rows pass validation).
+
+        The ``done_writing()`` / ``close()`` split is intentional:
+        * ``done_writing()`` signals end-of-stream without closing the RPC call,
+          allowing the metadata reads to complete while the call is still alive.
+        * ``writer.close()`` in the ``finally`` block always terminates the call,
+          even if writing or reading raises.
+
+        Args:
+            request: A :class:`PublishRequest` carrying the encoded server config
+                (``input_config``) and the dataset as a ``pd.DataFrame``.
+
+        Returns:
+            A :class:`DryPublishResponse` populated from the server's JSON response and,
+            when present, the invalid-records Arrow table converted to a
+            ``pd.DataFrame``.
+
+        Raises:
+            TransportError: Any Arrow Flight or gRPC error is translated by
+                :func:`parse_dataconnect_error` before propagating.
+        """
+
+        descriptor_bytes = publish_request.input_config.encode("utf-8")
+        flight_descriptor = flight.FlightDescriptor.for_path(descriptor_bytes)
+
+        arrow_table = pa.Table.from_pandas(publish_request.data, preserve_index=False)
+
+        # pa.Table.from_pandas() widens string→large_string, binary→large_binary,
+        # and list→large_list. Normalize back so the schema matches the server.
+        arrow_table = arrow_table.cast(
+            pa.schema([f.with_type(_normalize_arrow_type(f.type)) for f in arrow_table.schema])
+        )
+
+        try:
+            writer, reader = self._client.do_put(flight_descriptor, arrow_table.schema, self._options())
+
+            try:
+                for batch in arrow_table.to_batches():
+                    writer.write_batch(batch)
+                writer.done_writing()  # only signal completion when all batches succeeded
+
+                # Read while the RPC call is still open (before writer.close())
+                # The server first writes a JSON result, then the Arrow table as IPC bytes
+                _json_buf = reader.read()
+                json_result = json.loads(_json_buf.to_pybytes())
+
+                # Read the Arrow table returned by the server upon successful publishing
+                metadata_buf = reader.read()
+                result_table = pa.ipc.open_stream(pa.BufferReader(metadata_buf)).read_all() if metadata_buf else None
+            finally:
+                writer.close()  # terminates the RPC call — must happen after all reads
+
+            return DryPublishResponse(
+                status=json_result.get("status", False),
+                is_schema_valid=json_result.get("is_schema_valid", False),
+                is_config_valid=json_result.get("is_config_valid", False),
+                dataset_valid=json_result.get("dataset_valid", False),
+                errors=json_result.get("errors", []),
+                invalid_datetime_formats=json_result.get("invalid_datetime_formats", {}),
+                dataset_name=json_result.get("dataset_name", ""),
+                dataset_version=json_result.get("dataset_version", 0),
+                no_of_columns=json_result.get("no_of_columns", 0),
+                valid_record_count=json_result.get("valid_record_count", 0),
+                duplicate_record_count=json_result.get("duplicate_record_count", 0),
+                invalid_record_count=json_result.get("invalid_record_count", 0),
+                invalid_records=result_table.to_pandas() if result_table else None,
+            )
 
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex

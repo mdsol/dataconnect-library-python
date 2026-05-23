@@ -7,7 +7,7 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, StudiesResult
+from dataconnect.models import Dataset, DatasetVersion, DryPublishResult, PaginatedResponse, StudiesResult
 
 
 class DataConnectService(ABC):
@@ -34,6 +34,17 @@ class DataConnectService(ABC):
         dataset_uuid: UUID,
         first_n_rows: int | None = None,
     ) -> pd.DataFrame: ...
+
+    @abstractmethod
+    def dry_publish(
+        self,
+        project_token: str,
+        dataset_name: str,
+        key_columns: list[str],
+        source_datasets: list[UUID],
+        data: pd.DataFrame,
+        datetime_formats: dict[str, str] | None = None,
+    ) -> DryPublishResult: ...
 
     @abstractmethod
     def close(self) -> None: ...

@@ -6,11 +6,23 @@ user-facing code.
 """
 
 from dataconnect.transport.base import Transport
-from dataconnect.transport.models import DataRef, ResourceInfo, ResourceQuery
+from dataconnect.transport.models import (
+    DataRef,
+    DatasetTicket,
+    DataTable,
+    DryPublishResponse,
+    PublishRequest,
+    ResourceInfo,
+    ResourceQuery,
+)
 
 __all__ = [
     "Transport",
     "ResourceQuery",
     "ResourceInfo",
     "DataRef",
+    "DatasetTicket",
+    "DataTable",
+    "PublishRequest",
+    "DryPublishResponse",
 ]

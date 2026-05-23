@@ -6,6 +6,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
+import pandas as pd
+
 
 @dataclass(frozen=True)
 class ResourceQuery:
@@ -61,3 +63,26 @@ class DataTable:
 
     schema_bytes: bytes
     ipc_bytes: bytes
+
+
+@dataclass(frozen=True)
+class PublishRequest:
+    input_config: str
+    data: pd.DataFrame
+
+
+@dataclass(frozen=True)
+class DryPublishResponse:
+    status: bool
+    is_schema_valid: bool
+    is_config_valid: bool
+    dataset_valid: bool
+    errors: list[str]
+    invalid_datetime_formats: dict[str, str]
+    dataset_name: str
+    dataset_version: int
+    no_of_columns: int
+    valid_record_count: int
+    duplicate_record_count: int
+    invalid_record_count: int = 0
+    invalid_records: pd.DataFrame | None = None
