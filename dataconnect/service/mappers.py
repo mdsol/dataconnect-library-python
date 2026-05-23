@@ -130,14 +130,13 @@ def publish_response_to_domain(result: PublishResponse | None) -> PublishResult:
     """Map a transport-layer ``PublishResponse`` to a ``PublishResult`` domain object.
 
     ``PublishResponse`` carries flat, typed fields returned by the server after a
-    publish call.  The mapping is direct for all shared fields with one
-    exception:
+    publish call. The mapping is direct for all shared fields.
 
     Args:
         result: The transport-layer result returned by
-            :meth:`Transport.publish_dataset`.  Pass ``None`` to obtain a
+            :meth:`Transport.publish_dataset`. Pass ``None`` to obtain a
             default :class:`PublishResult` with ``status=False`` and all
-            other fields at their zero values.
+            other fields left at their default values.
 
     Returns:
         A :class:`PublishResult` suitable for returning to the caller.

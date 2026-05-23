@@ -67,10 +67,17 @@ class DataTable:
 
 @dataclass(frozen=True)
 class PublishRequest:
-    """A publish request containing the input configuration and the dataset to be published."""
+    """A publish request containing the input configuration and the dataset to be published.
+
+    Attributes:
+        input_config: JSON-encoded server configuration string, including
+            ``is_dry_publish`` flag.
+        data: The dataset to send to the server.
+    """
 
     input_config: str
     """JSON-encoded server configuration string, including ``is_dry_publish`` flag."""
+
     data: pd.DataFrame
     """The dataset to send to the server."""
 

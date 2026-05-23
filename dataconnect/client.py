@@ -116,8 +116,7 @@ class DataConnectClient:
                 is derived from.
             data: The dataset to validate as a ``pd.DataFrame``.
             datetime_formats: Optional mapping of column name → datetime format
-                string (e.g. ``{"visit_date": "yyyy-MM-dd"}``).  Defaults to
-                an empty dict when omitted.
+                string (e.g. ``{"visit_date": "yyyy-MM-dd"}``).
 
         Returns:
             A :class:`DryPublishResult` containing the server's validation
@@ -155,8 +154,7 @@ class DataConnectClient:
                 is derived from.
             data: The dataset to publish as a ``pd.DataFrame``.
             datetime_formats: Optional mapping of column name → datetime format
-                string (e.g. ``{"visit_date": "yyyy-MM-dd"}``).  Defaults to
-                an empty dict when omitted.
+                string (e.g. ``{"visit_date": "yyyy-MM-dd"}``).
 
         Returns:
             A :class:`PublishResult` containing the server's publish outcome,
