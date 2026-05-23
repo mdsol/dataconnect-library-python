@@ -82,3 +82,18 @@ class DryPublishResult:
     duplicate_record_count: int | None = None
     invalid_record_count: int | None = None
     invalid_records: pd.DataFrame | None = None
+
+
+@dataclass
+class PublishResult:
+    """Result of a publish operation, including status and details."""
+
+    status: bool
+    dataset_name: str | None = None
+    dataset_uuid: str | None = None
+    dataset_version: int | None = None
+    dataset_batch_number: int | None = None
+    valid_record_count: int | None = None
+    duplicate_record_count: int | None = None
+    invalid_record_count: int | None = None
+    invalid_records: pd.DataFrame | None = None

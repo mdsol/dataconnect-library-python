@@ -67,12 +67,29 @@ class DataTable:
 
 @dataclass(frozen=True)
 class PublishRequest:
+    """A publish request containing the input configuration and the dataset to be published.
+
+    Attributes:
+        input_config: JSON-encoded server configuration string, including
+            ``is_dry_publish`` flag.
+        data: The dataset to send to the server.
+    """
+
     input_config: str
+    """JSON-encoded server configuration string, including ``is_dry_publish`` flag."""
+
     data: pd.DataFrame
+    """The dataset to send to the server."""
 
 
 @dataclass(frozen=True)
 class DryPublishResponse:
+    """Transport-layer response from a dry-publish call.
+
+    Carries the server's validation outcome for all rows and schema checks
+    without any data being persisted.
+    """
+
     status: bool
     is_schema_valid: bool
     is_config_valid: bool
@@ -85,4 +102,23 @@ class DryPublishResponse:
     valid_record_count: int
     duplicate_record_count: int
     invalid_record_count: int = 0
+    invalid_records: pd.DataFrame | None = None
+
+
+@dataclass(frozen=True)
+class PublishResponse:
+    """Transport-layer response from a live publish call.
+
+    Carries the server's outcome after persisting the submitted dataset,
+    including the assigned dataset UUID and version number.
+    """
+
+    status: bool
+    dataset_name: str | None = None
+    dataset_uuid: str | None = None
+    dataset_version: int | None = None
+    dataset_batch_number: int | None = None
+    valid_record_count: int | None = None
+    duplicate_record_count: int | None = None
+    invalid_record_count: int | None = None
     invalid_records: pd.DataFrame | None = None

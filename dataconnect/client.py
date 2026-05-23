@@ -12,7 +12,14 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.models import Dataset, DatasetVersion, DryPublishResult, PaginatedResponse, StudiesResult
+from dataconnect.models import (
+    Dataset,
+    DatasetVersion,
+    DryPublishResult,
+    PaginatedResponse,
+    PublishResult,
+    StudiesResult,
+)
 from dataconnect.service import DataConnectService, DefaultDataConnectService
 
 _DEFAULT_HOST = "enodia-gateway.platform.imedidata.com"
@@ -96,8 +103,64 @@ class DataConnectClient:
         data: pd.DataFrame,
         datetime_formats: dict[str, str] | None = None,
     ) -> DryPublishResult:
+        """Validate a dataset against the server without persisting any changes.
 
+        Delegates directly to :meth:`DataConnectService.dry_publish`.
+
+        Args:
+            project_token: Base64-encoded project token identifying the target
+                study, study environment, and project.
+            dataset_name: Name of the dataset to validate.
+            key_columns: Column names that form the unique key for the dataset.
+            source_datasets: UUIDs of the source datasets the published dataset
+                is derived from.
+            data: The dataset to validate as a ``pd.DataFrame``.
+            datetime_formats: Optional mapping of column name → datetime format
+                string (e.g. ``{"visit_date": "yyyy-MM-dd"}``).
+
+        Returns:
+            A :class:`DryPublishResult` containing the server's validation
+            outcome, including per-field validity flags, error messages, and
+            an optional ``invalid_records`` DataFrame.
+        """
         return self._service.dry_publish(
+            project_token=project_token,
+            dataset_name=dataset_name,
+            key_columns=key_columns,
+            source_datasets=source_datasets,
+            data=data,
+            datetime_formats=datetime_formats,
+        )
+
+    def publish(
+        self,
+        project_token: str,
+        dataset_name: str,
+        key_columns: list[str],
+        source_datasets: list[UUID],
+        data: pd.DataFrame,
+        datetime_formats: dict[str, str] | None = None,
+    ) -> PublishResult:
+        """Publish a dataset to the server.
+
+        Delegates directly to :meth:`DataConnectService.publish`.
+
+        Args:
+            project_token: Base64-encoded project token identifying the target
+                study, study environment, and project.
+            dataset_name: Name of the dataset to publish.
+            key_columns: Column names that form the unique key for the dataset.
+            source_datasets: UUIDs of the source datasets the published dataset
+                is derived from.
+            data: The dataset to publish as a ``pd.DataFrame``.
+            datetime_formats: Optional mapping of column name → datetime format
+                string (e.g. ``{"visit_date": "yyyy-MM-dd"}``).
+
+        Returns:
+            A :class:`PublishResult` containing the server's publish outcome,
+            including dataset UUID, version, and record counts.
+        """
+        return self._service.publish(
             project_token=project_token,
             dataset_name=dataset_name,
             key_columns=key_columns,
