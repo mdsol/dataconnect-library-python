@@ -39,7 +39,7 @@ class Transport(ABC):
         """
 
     @abstractmethod
-    def dry_publish_dataset(self, request: PublishRequest) -> DryPublishResponse:
+    def dry_publish_dataset(self, publish_request: PublishRequest) -> DryPublishResponse:
         """Dry publish a dataset described by ``publish_request``.
 
         All record batches from the stream are read and returned as a single

@@ -241,7 +241,7 @@ class ArrowFlightTransport(Transport):
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex
 
-    def dry_publish_dataset(self, request: PublishRequest) -> DryPublishResponse:
+    def dry_publish_dataset(self, publish_request: PublishRequest) -> DryPublishResponse:
         """Send a dataset to the server via Arrow Flight ``do_put`` and return the validation result.
 
         The method serialises the request DataFrame to Arrow IPC, streams it to
@@ -272,10 +272,10 @@ class ArrowFlightTransport(Transport):
                 :func:`parse_dataconnect_error` before propagating.
         """
 
-        descriptor_bytes = request.input_config.encode("utf-8")
+        descriptor_bytes = publish_request.input_config.encode("utf-8")
         flight_descriptor = flight.FlightDescriptor.for_path(descriptor_bytes)
 
-        arrow_table = pa.Table.from_pandas(request.data)
+        arrow_table = pa.Table.from_pandas(publish_request.data, preserve_index=False)
 
         # pa.Table.from_pandas() widens string→large_string, binary→large_binary,
         # and list→large_list. Normalize back so the schema matches the server.

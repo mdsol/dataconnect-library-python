@@ -176,9 +176,11 @@ class DefaultDataConnectService(DataConnectService):
             an optional ``invalid_records`` DataFrame.
 
         Raises:
-            ServiceError: Any :class:`TransportError` from the transport layer
-                is translated by :func:`translate_error` before propagating.
-        """
+             DataConnectError: Any :class:`TransportError` from the transport
+             layer is translated by :func:`translate_error` into the public
+             API's :class:`DataConnectError` hierarchy before propagating,
+             for example :class:`ValidationError`,
+             :class:`AuthorizationError`, or :class:`ServerError`."""
 
         request = PublishRequest(
             input_config=json.dumps(
