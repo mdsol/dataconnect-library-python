@@ -2,14 +2,25 @@
 
 from __future__ import annotations
 
+import json
 from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Pagination, StudiesResult
+from dataconnect.models import (
+    Dataset,
+    DatasetVersion,
+    DryPublishResult,
+    PaginatedResponse,
+    Pagination,
+    PublishResult,
+    StudiesResult,
+)
 from dataconnect.service.base import DataConnectService
 from dataconnect.service.error_handler import translate_error
 from dataconnect.service.mappers import (
+    dry_publish_response_to_domain,
+    publish_response_to_domain,
     resource_to_dataset,
     resource_to_dataset_version,
     resource_to_fetched_data,
@@ -17,7 +28,7 @@ from dataconnect.service.mappers import (
 )
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import TransportError
-from dataconnect.transport.models import DatasetTicket, ResourceQuery
+from dataconnect.transport.models import DatasetTicket, PublishRequest, ResourceQuery
 
 # Server action identifiers
 _ACTION_LIST_STUDIES = "studies.list"
@@ -41,19 +52,18 @@ class DefaultDataConnectService(DataConnectService):
 
         Returns:
             A :class:`StudiesResult` containing:
-            - ``total``: total number of studies accessible to the authenticated user.
+            - ``total_records``: total number of studies accessible to the authenticated user.
             - ``studies``: list of :class:`Study` objects matching the criteria.
         """
 
         request = ResourceQuery(action=_ACTION_LIST_STUDIES)
-        if search_study_name and search_study_name.strip() != "":
-            request = request.append_body({"search_study_name": search_study_name})
+        request = request.append_body({"search_study_name": search_study_name})
 
         try:
             resources = self._transport.list_resources(request)
-            total = resources[0].total_records if resources else 0
+            total_records = resources[0].total_records if resources else 0
             studies = [resource_to_study(r) for r in resources]
-            return StudiesResult(total=total, studies=studies)
+            return StudiesResult(total_records=total_records, studies=studies)
         except Exception as ex:
             raise translate_error(ex) from ex
 
@@ -136,6 +146,133 @@ class DefaultDataConnectService(DataConnectService):
                 pagination=Pagination(page=page, page_size=page_size, total_pages=total_pages),
                 items=items,
             )
+        except TransportError as ex:
+            raise translate_error(ex) from ex
+
+    def dry_publish(
+        self,
+        project_token: str,
+        dataset_name: str,
+        key_columns: list[str],
+        source_datasets: list[UUID],
+        data: pd.DataFrame,
+        datetime_formats: dict[str, str] | None = None,
+    ) -> DryPublishResult:
+        """Validate a dataset against the server without committing any changes.
+
+        Encodes the publish configuration as a JSON ``input_config`` string,
+        sets ``is_dry_publish: True`` so the server treats the call as a
+        validation-only run, then delegates to the transport layer.
+
+        The server response is mapped to a :class:`DryPublishResult` via
+        :func:`dry_publish_response_to_domain`.
+
+        Args:
+            project_token: Base64-encoded project token identifying the target
+                study, study environment, and project.
+            dataset_name: Name of the dataset to validate.
+            key_columns: Column names that form the unique key for the dataset.
+            source_datasets: UUIDs of the source datasets the published dataset
+                is derived from.
+            data: The dataset to validate as a ``pd.DataFrame``.
+            datetime_formats: Optional mapping of column name → datetime format
+                string (e.g. ``{"visit_date": "yyyy-MM-dd"}``).  Defaults to
+                an empty dict when omitted.
+
+        Returns:
+            A :class:`DryPublishResult` containing the server's validation
+            outcome, including per-field validity flags, error messages, and
+            an optional ``invalid_records`` DataFrame.
+
+        Raises:
+             DataConnectError: Any :class:`TransportError` from the transport
+             layer is translated by :func:`translate_error` into the public
+             API's :class:`DataConnectError` hierarchy before propagating,
+             for example :class:`ValidationError`,
+             :class:`AuthorizationError`, or :class:`ServerError`."""
+
+        request = PublishRequest(
+            input_config=json.dumps(
+                {
+                    "is_dry_publish": True,
+                    "project_token": project_token,
+                    "dataset_name": dataset_name,
+                    "dataset_description": dataset_name,
+                    "key_columns": key_columns,
+                    "source_datasets": [str(uuid) for uuid in source_datasets],
+                    "datetime_formats": datetime_formats or {},
+                }
+            ),
+            data=data,
+        )
+
+        try:
+            publish_result = self._transport.dry_publish_dataset(request)
+
+            return dry_publish_response_to_domain(publish_result)
+
+        except TransportError as ex:
+            raise translate_error(ex) from ex
+
+    def publish(
+        self,
+        project_token: str,
+        dataset_name: str,
+        key_columns: list[str],
+        source_datasets: list[UUID],
+        data: pd.DataFrame,
+        datetime_formats: dict[str, str] | None = None,
+    ) -> PublishResult:
+        """Publish a dataset to the server and return the result.
+
+        Encodes the publish configuration as a JSON ``input_config`` string,
+        sets ``is_dry_publish: False`` so the server treats the call as a
+        live publish run, then delegates to the transport layer.
+
+        The server response is mapped to a :class:`PublishResult` via
+        :func:`publish_response_to_domain`.
+
+        Args:
+            project_token: Base64-encoded project token identifying the target
+                study, study environment, and project.
+            dataset_name: Name of the dataset to publish.
+            key_columns: Column names that form the unique key for the dataset.
+            source_datasets: UUIDs of the source datasets the published dataset
+                is derived from.
+            data: The dataset to publish as a ``pd.DataFrame``.
+            datetime_formats: Optional mapping of column name → datetime format
+                string (e.g. ``{"visit_date": "yyyy-MM-dd"}``).  Defaults to
+                an empty dict when omitted.
+
+        Returns:
+            A :class:`PublishResult` containing the server's publish outcome,
+            including dataset UUID, version, and record counts.
+
+        Raises:
+            DataConnectError: Any :class:`TransportError` from the transport
+                layer is translated by :func:`translate_error` into the public
+                API's :class:`DataConnectError` hierarchy before propagating.
+        """
+        request = PublishRequest(
+            input_config=json.dumps(
+                {
+                    "is_dry_publish": False,
+                    "project_token": project_token,
+                    "dataset_name": dataset_name,
+                    "dataset_description": dataset_name,
+                    "key_columns": key_columns,
+                    "source_datasets": [str(uuid) for uuid in source_datasets],
+                    "datetime_formats": datetime_formats or {},
+                }
+            ),
+            data=data,
+        )
+
+        try:
+            publish_result = self._transport.publish_dataset(request)
+
+            return publish_response_to_domain(publish_result)
+
         except TransportError as ex:
             raise translate_error(ex) from ex
 

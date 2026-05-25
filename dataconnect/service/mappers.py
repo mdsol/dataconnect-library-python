@@ -15,8 +15,8 @@ import pandas as pd
 import pyarrow as pa
 
 from dataconnect.exceptions import NotFoundError
-from dataconnect.models import Dataset, DatasetVersion, Study, StudyEnvironment
-from dataconnect.transport.models import DataTable, ResourceInfo
+from dataconnect.models import Dataset, DatasetVersion, DryPublishResult, PublishResult, Study, StudyEnvironment
+from dataconnect.transport.models import DataTable, DryPublishResponse, PublishResponse, ResourceInfo
 
 
 def resource_to_study(resource: ResourceInfo) -> Study:
@@ -84,4 +84,74 @@ def resource_to_dataset(resource: ResourceInfo) -> Dataset:
         study_uuid=data.get("study_uuid", ""),
         study_env_uuid=data.get("study_env_uuid", ""),
         dataset_name=data.get("dataset_name", ""),
+    )
+
+
+def dry_publish_response_to_domain(result: DryPublishResponse | None) -> DryPublishResult:
+    """Map a transport-layer ``DryPublishResponse`` to a ``DryPublishResult`` domain object.
+
+    ``DryPublishResponse`` carries flat, typed fields returned by the server after a
+    dry-publish call.  The mapping is direct for all shared fields with one
+    exception:
+
+    * ``DryPublishResponse.dataset_valid`` → ``DryPublishResult.is_dataset_valid``
+      (renamed for naming consistency with the other ``is_*_valid`` fields).
+
+    Args:
+        result: The transport-layer result returned by
+            :meth:`Transport.dry_publish_dataset`.  Pass ``None`` to obtain a
+            default :class:`DryPublishResult` with ``status=False`` and all
+            other fields at their zero values.
+
+    Returns:
+        A :class:`DryPublishResult` suitable for returning to the caller.
+    """
+    if result is None:
+        return DryPublishResult(status=False)
+
+    return DryPublishResult(
+        status=result.status,
+        is_schema_valid=result.is_schema_valid,
+        is_config_valid=result.is_config_valid,
+        is_dataset_valid=result.dataset_valid,
+        errors=result.errors,
+        invalid_datetime_formats=result.invalid_datetime_formats,
+        dataset_name=result.dataset_name,
+        dataset_version=result.dataset_version,
+        no_of_columns=result.no_of_columns,
+        valid_record_count=result.valid_record_count,
+        duplicate_record_count=result.duplicate_record_count,
+        invalid_record_count=result.invalid_record_count,
+        invalid_records=result.invalid_records,
+    )
+
+
+def publish_response_to_domain(result: PublishResponse | None) -> PublishResult:
+    """Map a transport-layer ``PublishResponse`` to a ``PublishResult`` domain object.
+
+    ``PublishResponse`` carries flat, typed fields returned by the server after a
+    publish call. The mapping is direct for all shared fields.
+
+    Args:
+        result: The transport-layer result returned by
+            :meth:`Transport.publish_dataset`. Pass ``None`` to obtain a
+            default :class:`PublishResult` with ``status=False`` and all
+            other fields left at their default values.
+
+    Returns:
+        A :class:`PublishResult` suitable for returning to the caller.
+    """
+    if result is None:
+        return PublishResult(status=False)
+
+    return PublishResult(
+        status=result.status,
+        dataset_name=result.dataset_name,
+        dataset_uuid=result.dataset_uuid,
+        dataset_version=result.dataset_version,
+        dataset_batch_number=result.dataset_batch_number,
+        valid_record_count=result.valid_record_count,
+        duplicate_record_count=result.duplicate_record_count,
+        invalid_record_count=result.invalid_record_count,
+        invalid_records=result.invalid_records,
     )

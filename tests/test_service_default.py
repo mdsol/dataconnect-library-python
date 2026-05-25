@@ -1,8 +1,5 @@
 # from __future__ import annotations
 
-# import pytest
-
-# from dataconnect.exceptions import ValidationError
 # from dataconnect.models import StudiesResult
 # from dataconnect.service.default import DefaultDataConnectService
 # from dataconnect.transport.models import DataRef, ResourceInfo, ResourceQuery
@@ -32,19 +29,21 @@
 #     )
 
 
-# def test_get_studies_without_search_name_uses_empty_request_body() -> None:
+# def test_get_studies_without_search_name_uses_none_in_body() -> None:
+#     # When called without a filter, search_study_name defaults to None and is
+#     # included in the JSON body as null.
 #     transport = StubTransport(resources=[_study_resource()])
 #     service = DefaultDataConnectService(transport)
 
 #     result = service.get_studies()
 
 #     assert isinstance(result, StudiesResult)
-#     assert result.total == 1
+#     assert result.total_records == 1
 #     assert len(result.studies) == 1
 #     assert result.studies[0].name == "Study A"
 #     assert transport.last_request is not None
 #     assert transport.last_request.action == "studies.list"
-#     assert transport.last_request.body == ""
+#     assert transport.last_request.body == '{"search_study_name":null}'
 
 
 # def test_get_studies_with_search_name_sets_request_body() -> None:
@@ -54,7 +53,7 @@
 #     result = service.get_studies(search_study_name="Cardio")
 
 #     assert isinstance(result, StudiesResult)
-#     assert result.total == 5
+#     assert result.total_records == 5
 #     assert len(result.studies) == 1
 #     assert result.studies[0].name == "Cardio Study"
 #     assert transport.last_request is not None
@@ -68,11 +67,12 @@
 #     result = service.get_studies()
 
 #     assert isinstance(result, StudiesResult)
-#     assert result.total == 0
+#     assert result.total_records == 0
 #     assert result.studies == []
 
 
 # def test_get_studies_accepts_none_search_name() -> None:
+#     # Passing None explicitly is the same as the default — body contains null.
 #     transport = StubTransport(resources=[_study_resource()])
 #     service = DefaultDataConnectService(transport)
 
@@ -81,4 +81,4 @@
 #     assert isinstance(result, StudiesResult)
 #     assert len(result.studies) == 1
 #     assert transport.last_request is not None
-#     assert transport.last_request.body == ""
+#     assert transport.last_request.body == '{"search_study_name":null}'
