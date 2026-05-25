@@ -125,16 +125,12 @@ class ArrowFlightTransport(Transport):
         except Exception as exc:
             raise parse_dataconnect_error(exc) from exc
 
-        if user_uuid:
-            self._call_headers.append((b"user-uuid", str(user_uuid).encode("utf-8")))
-
         try:
             sdk_version = version("dataconnect-library-python")
         except Exception:
             sdk_version = "0.1.0"
-        self._call_headers.append((b"python-sdk-version", sdk_version.encode("utf-8")))
-
-        self._call_headers.append((b"sdk-type", b"Python"))
+        client_info_value = f"Python_SDK;{sdk_version};"
+        self._call_headers.append((b"x-client-dataconnect", client_info_value.encode("utf-8")))
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -143,7 +139,7 @@ class ArrowFlightTransport(Transport):
             s.close()
         except Exception:
             client_ip = "127.0.0.1"
-        self._call_headers.append((b"client-ip", client_ip.encode("utf-8")))
+        self._call_headers.append((b"x-client-public-ip", client_ip.encode("utf-8")))
 
         if token:
             self._call_headers.append((b"authorization", f"Bearer {token}".encode()))

@@ -33,20 +33,14 @@ def test_connect_injects_all_required_logging_headers(mock_flight_client: MagicM
     transport = client._service._transport
     headers_dict = dict(transport._call_headers)
 
-    # AC-01: User UUID
-    assert b"user-uuid" in headers_dict
-    assert headers_dict[b"user-uuid"] == b"enodia-user-uuid-12345"
-
-    # AC-02 & AC-03: SDK Version & SDK Type consistency
-    assert b"python-sdk-version" in headers_dict
-    assert headers_dict[b"python-sdk-version"] == b"v1.2.3-test"
-    assert b"sdk-type" in headers_dict
-    assert headers_dict[b"sdk-type"] == b"Python"
+    # AC-02 & AC-03: SDK Version & SDK Type consistency combined for Server Middleware
+    assert b"x-client-dataconnect" in headers_dict
+    assert headers_dict[b"x-client-dataconnect"] == b"Python_SDK;v1.2.3-test;"
 
     # AC-04: Client IP Address validation
-    assert b"client-ip" in headers_dict
+    assert b"x-client-public-ip" in headers_dict
     try:
-        socket.inet_aton(headers_dict[b"client-ip"].decode("utf-8"))
+        socket.inet_aton(headers_dict[b"x-client-public-ip"].decode("utf-8"))
         ip_is_valid = True
     except OSError:
         ip_is_valid = False
@@ -73,8 +67,8 @@ def test_sdk_type_remains_python_across_different_sdk_versions(
     transport = client._service._transport
     headers_dict = dict(transport._call_headers)
 
-    assert headers_dict[b"python-sdk-version"] == simulated_version.encode("utf-8")
-    assert headers_dict[b"sdk-type"] == b"Python"
+    expected_client_info = f"Python_SDK;{simulated_version};".encode()
+    assert headers_dict[b"x-client-dataconnect"] == expected_client_info
 
 
 # ---------------------------------------------------------------------------
@@ -99,8 +93,8 @@ def test_client_ip_falls_back_to_localhost_on_socket_error(mock_flight_client: M
     transport = client._service._transport
     headers_dict = dict(transport._call_headers)
 
-    assert b"client-ip" in headers_dict
-    assert headers_dict[b"client-ip"] == b"127.0.0.1"
+    assert b"x-client-public-ip" in headers_dict
+    assert headers_dict[b"x-client-public-ip"] == b"127.0.0.1"
 
 
 @patch("pyarrow.flight.FlightClient")
@@ -117,5 +111,5 @@ def test_sdk_version_falls_back_on_package_not_found_error(mock_flight_client: M
     transport = client._service._transport
     headers_dict = dict(transport._call_headers)
 
-    assert b"python-sdk-version" in headers_dict
-    assert headers_dict[b"python-sdk-version"] == b"0.1.0"
+    assert b"x-client-dataconnect" in headers_dict
+    assert headers_dict[b"x-client-dataconnect"] == b"Python_SDK;0.1.0;"
