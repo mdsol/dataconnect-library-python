@@ -28,7 +28,7 @@ This document is intended for first-time end-users.
   source ./.venv/bin/activate
   ```
 
-  * To confirm that the virtual environment has been created and activated, simply enter `which python3` (or `which python`) and it should point to the `dataconnect/venv/bin` path. If not, run the above commands again.
+  * To confirm that the virtual environment has been created and activated, simply enter `which python3` (or `which python`) and it should point to the `dataconnect/.venv/bin` path. If not, run the above commands again.
 
 
 * Run the following command to fetch the latest-released `dataconnect-library-python` package. In this example, version `1.0.0` is assumed to be the latest release:
