@@ -1,0 +1,167 @@
+name: Release DataConnect Python Package
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (leave empty for auto from pyproject.toml)'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.event.pull_request.number || github.ref }}-release
+  cancel-in-progress: true
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Get package info
+        id: pkg-info
+        run: |
+          PKG_VERSION=$(grep '^version' pyproject.toml | head -1 | awk -F'"' '{print $2}')
+          PKG_NAME=$(grep '^name' pyproject.toml | head -1 | awk -F'"' '{print $2}')
+          echo "version=$PKG_VERSION" >> $GITHUB_OUTPUT
+          echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
+          echo "Package: $PKG_NAME, Version: $PKG_VERSION"
+
+      - name: Check existing tag
+        id: check_tag
+        run: |
+          if git rev-parse "v${{ steps.pkg-info.outputs.version }}" >/dev/null 2>&1; then
+            echo "tag_exists=true" >> $GITHUB_OUTPUT
+            echo "Tag v${{ steps.pkg-info.outputs.version }} already exists, will not create duplicate"
+          else
+            echo "tag_exists=false" >> $GITHUB_OUTPUT
+            echo "Tag v${{ steps.pkg-info.outputs.version }} does not exist yet"
+          fi
+
+      - name: Build package
+        if: steps.check_tag.outputs.tag_exists != 'true'
+        run: poetry build
+
+      - name: Find previous tag
+        id: find-previous-tag
+        if: steps.check_tag.outputs.tag_exists != 'true'
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "No previous tag found - will generate changelog from all commits"
+            echo "previous_tag=" >> $GITHUB_OUTPUT
+            echo "from_ref=$(git rev-list --max-parents=0 HEAD)" >> $GITHUB_OUTPUT
+          else
+            echo "Previous tag found: $PREVIOUS_TAG"
+            echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+            echo "from_ref=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate changelog
+        id: generate-changelog
+        if: steps.check_tag.outputs.tag_exists != 'true'
+        run: |
+          FROM_REF="${{ steps.find-previous-tag.outputs.from_ref }}"
+          echo "Generating changelog from $FROM_REF to HEAD..."
+          mkdir -p .github
+
+          CURRENT_VERSION="${{ steps.pkg-info.outputs.version }}"
+          CURRENT_DATE=$(date +"%Y-%m-%d")
+
+          BRANCH_NAME=$(git branch --show-current 2>/dev/null || echo "")
+          JIRA_TICKETS=$(echo "$BRANCH_NAME" | grep -o 'MCC-[0-9]*' | sort -u | tr '\n' ' ')
+
+          echo "# Release Notes for v$CURRENT_VERSION ($CURRENT_DATE)" > .github/release-notes.md
+          echo "" >> .github/release-notes.md
+
+          if [ ! -z "$JIRA_TICKETS" ]; then
+            echo "## Related Issues" >> .github/release-notes.md
+            for ticket in $JIRA_TICKETS; do
+              echo "- $ticket" >> .github/release-notes.md
+            done
+            echo "" >> .github/release-notes.md
+          fi
+
+          git log $FROM_REF..HEAD --pretty=format:"%s" > .github/all-commits.txt
+
+          extract_commits() {
+            local type=$1
+            local emoji=$2
+            local title=$3
+            echo "## $emoji $title" > .github/section-$type.md
+            grep -E "^$type(\([^)]*\))?!?:" .github/all-commits.txt | \
+              sed -E "s/^$type(\([^)]*\))?!?:\s*/- /" >> .github/section-$type.md || true
+            if [ $(wc -l < .github/section-$type.md) -gt 1 ]; then
+              cat .github/section-$type.md >> .github/release-notes.md
+              echo "" >> .github/release-notes.md
+              return 0
+            else
+              return 1
+            fi
+          }
+
+          extract_commits "feat" "🚀" "Features" || true
+          extract_commits "fix" "🐛" "Bug Fixes" || true
+          extract_commits "perf" "⚡" "Performance Improvements" || true
+          extract_commits "refactor" "♻️" "Refactoring" || true
+          extract_commits "docs" "📚" "Documentation" || true
+          extract_commits "chore" "🔧" "Maintenance" || true
+          extract_commits "ci" "👷" "CI/CD" || true
+
+          OTHER_COMMITS=$(grep -vE "^(feat|fix|perf|refactor|docs|chore|ci)(\([^)]*\))?!?:" \
+            .github/all-commits.txt | grep -v "^Merge " || true)
+          if [ ! -z "$OTHER_COMMITS" ]; then
+            echo "## 📝 Other Changes" >> .github/release-notes.md
+            echo "$OTHER_COMMITS" | sed 's/^/- /' >> .github/release-notes.md
+            echo "" >> .github/release-notes.md
+          fi
+
+          BREAKING=$(grep -E "^[a-z]+(\([^)]*\))?!:" .github/all-commits.txt || true)
+          if [ ! -z "$BREAKING" ]; then
+            echo "## ⚠️ Breaking Changes" >> .github/release-notes.md
+            echo "$BREAKING" | sed 's/^/- /' >> .github/release-notes.md
+            echo "" >> .github/release-notes.md
+          fi
+
+      - name: Display release notes
+        if: steps.check_tag.outputs.tag_exists != 'true'
+        run: |
+          echo "--- Release Notes Content ---"
+          cat .github/release-notes.md || echo "No release notes were generated"
+          echo "-----------------------------"
+
+      - name: Create Release
+        if: steps.check_tag.outputs.tag_exists != 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          name: "Release ${{ steps.pkg-info.outputs.version }}"
+          tag: "v${{ steps.pkg-info.outputs.version }}"
+          commit: ${{ github.sha }}
+          artifacts: "dist/*"
+          bodyFile: .github/release-notes.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: ${{ contains(steps.pkg-info.outputs.version, 'rc') || contains(steps.pkg-info.outputs.version, 'b') || contains(steps.pkg-info.outputs.version, 'a') }}
+          skipIfReleaseExists: true
