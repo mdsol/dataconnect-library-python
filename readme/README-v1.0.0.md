@@ -5,13 +5,9 @@ To use this library, you must have a valid iMedidata account and access to requi
 
 ## Table of Contents
 
-- [Environment Setup and Requirements](#environment-setup-and-requirements)
-	- [System Requirements](#system-requirements)
-	- [Authentication and Connectivity](#authentication-and-connectivity)
 - [Installation](#installation)
-	- [Option 1: Install from source (recommended for this repository)](#option-1-install-from-source-recommended-for-this-repository)
-	- [Option 2: Install using Poetry](#option-2-install-using-poetry)
 - [Quick Start](#quick-start)
+- [Authentication and Connectivity](#authentication-and-connectivity)
 - [Functions](#functions)
 	- [connect()](#connect)
 	- [get_studies()](#get_studies)
@@ -20,9 +16,8 @@ To use this library, you must have a valid iMedidata account and access to requi
 	- [fetch_data()](#fetch_data)
 	- [close()](#close)
 - [Errors](#errors)
-- [Reporting known issues ](#reporting-known-issues)
+- [Reporting known issues](#reporting-known-issues)
 - [Backend](#backend)
-- [Versions](#versions)
 - [Licensing](#licensing)
 
 ## Installation

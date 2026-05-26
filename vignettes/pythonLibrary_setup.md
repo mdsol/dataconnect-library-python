@@ -6,7 +6,7 @@ Choose one of the following approaches.
 
 ```bash
 git clone <repository-url>
-cd Dataconnect-library-python
+cd dataconnect-library-python
 python3.13 -m venv .venv
 source .venv/bin/activate
 pip install -e .
@@ -16,7 +16,7 @@ pip install -e .
 
 ```bash
 git clone <repository-url>
-cd Dataconnect-library-python
+cd dataconnect-library-python
 poetry install
 poetry shell
 ```
