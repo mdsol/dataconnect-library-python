@@ -22,11 +22,11 @@ To use this library, you must have a valid iMedidata account and access to requi
 
 ## Installation
 
-To install, follow the [Installation Guide](https://github.com/mdsol/dataconnect-library-r/blob/main/vignettes/dataconnect/readme/vignettes/pythonLibrary_setup.md).
+To install, follow the [Installation Guide](https://github.com/mdsol/dataconnect-library-python/blob/main/guides/dataconnect_setup.md).
 
 ## Quick Start
 
-For end-to-end examples, see the [Usage Guide]().
+For end-to-end examples, see the [Usage Guide](https://github.com/mdsol/dataconnect-library-python/blob/main/guides/dataconnect_quickstart.md).
 
 ### Authentication and Connectivity
 
