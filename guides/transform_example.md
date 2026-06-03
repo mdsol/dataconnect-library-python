@@ -18,10 +18,16 @@ library documentation.
 
 ```python
 from dataconnect import DataConnectClient
+import pandas as pd
 from uuid import UUID
+
+user_token = "usertoken_from_dataconnect_developer_center"
+data =
 
 with DataConnectClient.connect(token=user_token) as dataconnect_client:
   import_data = dataconnect_client.fetch_data(dataset_uuid=UUID("import_dataset_uuid"))
+
+  data = pd.DataFrame() # should be populated
 
   # Pivot data
   pivot_df = data.rename(
@@ -65,5 +71,5 @@ with DataConnectClient.connect(token=user_token) as dataconnect_client:
   # (to include keys only present in derived data)
   publish_df = import_data.merge(union_df[["subjid", "siteid", "visitnum"]].drop_duplicates(), ...)
 
-  publish_df.head()
+  print(publish_df.head())
 ```
