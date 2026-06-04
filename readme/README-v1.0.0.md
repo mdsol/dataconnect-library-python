@@ -5,28 +5,50 @@ To use this library, you must have a valid iMedidata account and access to requi
 
 ## Table of Contents
 
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Authentication and Connectivity](#authentication-and-connectivity)
-- [Functions](#functions)
-	- [connect()](#connect)
-	- [get_studies()](#get_studies)
-	- [get_datasets()](#get_datasets)
-	- [get_dataset_versions()](#get_dataset_versions)
-	- [fetch_data()](#fetch_data)
-	- [close()](#close)
-- [Errors](#errors)
+- [DataConnect Python Library v1.0.0](#dataconnect-python-library-v100)
+  - [Table of Contents](#table-of-contents)
+  - [Setup and Usage](#setup-and-usage)
+    - [Authentication and Connectivity](#authentication-and-connectivity)
+  - [Functions](#functions)
+    - [connect()](#connect)
+      - [Description](#description)
+      - [Usage](#usage)
+      - [Arguments](#arguments)
+      - [Output](#output)
+    - [get\_studies()](#get_studies)
+      - [Description](#description-1)
+      - [Usage](#usage-1)
+      - [Arguments](#arguments-1)
+      - [Output](#output-1)
+    - [get\_datasets()](#get_datasets)
+      - [Description](#description-2)
+      - [Usage](#usage-2)
+      - [Arguments](#arguments-2)
+      - [Output](#output-2)
+    - [get\_dataset\_versions()](#get_dataset_versions)
+      - [Description](#description-3)
+      - [Usage](#usage-3)
+      - [Arguments](#arguments-3)
+      - [Output](#output-3)
+    - [fetch\_data()](#fetch_data)
+      - [Description](#description-4)
+      - [Usage](#usage-4)
+      - [Arguments](#arguments-4)
+      - [Output](#output-4)
+    - [close()](#close)
+      - [Description](#description-5)
+      - [Usage](#usage-5)
+      - [Arguments](#arguments-5)
+      - [Output](#output-5)
+  - [Errors](#errors)
 - [Reporting known issues](#reporting-known-issues)
 - [Backend](#backend)
 - [Licensing](#licensing)
 
-## Installation
+## Setup and Usage
 
-To install, follow the [Installation Guide](https://github.com/mdsol/dataconnect-library-python/blob/main/guides/dataconnect_setup.md).
-
-## Quick Start
-
-For end-to-end examples, see the [Usage Guide](https://github.com/mdsol/dataconnect-library-python/blob/main/guides/dataconnect_quickstart.md).
+* For instructions on how to install and use this library, follow the [Usage Notebook](../guides/dataconnect_usage.ipynb).
+* For an example of how to transform data, go [here](../guides/transform_example.md).
 
 ### Authentication and Connectivity
 
