@@ -35,11 +35,24 @@ To use this library, you must have a valid iMedidata account and access to requi
       - [Usage](#usage-4)
       - [Arguments](#arguments-4)
       - [Output](#output-4)
-    - [close()](#close)
+    - [dry\_publish()](#dry_publish)
       - [Description](#description-5)
       - [Usage](#usage-5)
       - [Arguments](#arguments-5)
       - [Output](#output-5)
+      - [Data Validations](#data-validations)
+    - [publish()](#publish)
+      - [Description](#description-6)
+      - [Usage](#usage-6)
+      - [Arguments](#arguments-6)
+      - [Output](#output-6)
+      - [Data Validations](#data-validations-1)
+    - [Data Validation Failures](#data-validation-failures)
+    - [close()](#close)
+      - [Description](#description-7)
+      - [Usage](#usage-7)
+      - [Arguments](#arguments-7)
+      - [Output](#output-7)
   - [Errors](#errors)
 - [Reporting known issues](#reporting-known-issues)
 - [Backend](#backend)
@@ -156,6 +169,104 @@ Fetches dataset rows into a pandas DataFrame.
 Returns data from a specific dataset.
 
 ---
+
+### dry_publish()
+
+#### Description
+Check if the publish results meet validation requirements.
+
+#### Usage
+
+```python
+dry_publish(project_token, dataset_name, key_columns, source_datasets, data, datetime_formats = None)
+```
+
+#### Arguments
+
+| Argument             | Description |
+|:---------------------| :---------- |
+| **project_token**    | You can generate this from the Data Connect > Transformations > Custom Code project type. |
+| **dataset_name**     | Data Connect expects the dataset name to be unique within the study |
+| **key_columns**      | List of columns that form the composite key that identifies each unique record in the data to be validated. Key columns must not contain null/missing values (for example, `None`) in any row. |
+| **source_datasets**  | List of source dataset unique identifiers (UUIDs) to be used to create the data being validated |
+| **data**             | Data frame that needs to be validated |
+| **datetime_formats** | Optional. The expected format for date or datetime fields in the data frame. This is used to validate that the date or datetime fields in the data frame are in the correct format before publishing to Data Connect. This should be `None` when none of the fields in the data frame are expected to be in date or datetime type.|
+
+#### Output
+
+Returns the result of publishing validations as a list containing clean, server-side data-quality metrics:
+* **`valid_record_count`**: Number of clean records matching platform requirements (always ≥ 0).
+* **`duplicate_record_count`**: Gross duplicate records identified across the payload composite keys.
+* **`invalid_record_count`**: Number of records containing validation errors or missing required keys.
+* **`invalid_records`**: A data frame containing the rows that failed validation.
+
+#### Data Validations
+
+| Validations             | Description                                                                                                                                                                                                                                                                                                    |
+|:---------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Invalid Input**    | Required argument is missing                                                                                                                                                                                                                                                                                   |
+| **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type.<br>2. More than one dataset cannot be published into a project<br>3. Only the project owner can publish datasets into a project. |
+| **dataset_name**     | 1. Maximum length of 15 characters and must only contain alphanumeric characters and underscores<br> 2.  This is the new name of the resulting dataset created by the user                                                                                                                                                                                                            |
+| **key_columns** | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `None`) in any row<br> 3. Maps directly to the server-side metrics payload: `valid_record_count`, `duplicate_record_count`, and `invalid_record_count` without double-penalizing overlapping row states.                |
+| **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
+| **data**             | Invalid column name '{column.name}', it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
+| **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.      |
+
+
+### publish()
+
+#### Description
+
+Publish dataset to Data Connect.
+
+
+#### Usage
+
+```python
+publish(project_token, dataset_name, key_columns, source_datasets, data, datetime_formats = None)
+```
+
+#### Arguments
+
+| Argument             | Description |
+|:---------------------| :---------- |
+| **project_token**    | You can generate this from the Data Connect > Transformations > Custom Code project type |
+| **dataset_name**     | This is the new name of the resulting dataset being created by the user. Data Connect expects the dataset name to be unique within the study |
+| **key_columns**      | List of columns that form the composite key that identifies each unique record. Rows with null/missing values (for example, `None`) are flagged as invalid. Key fields are mandatory, they cannot be omitted.|
+| **source_datasets**  | List of source dataset UUIDs within the study environment where the dataset is published and used to create the data that is being published |
+| **data**             | Data frame which needs to be published |
+| **datetime_formats** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. This should be `None` when none of the fields in the data frame are expected to be in date or datetime type.|
+
+
+#### Output
+
+Returns the status of publish as a list containing the final backend execution results:
+* **`valid_record_count`**: Total structural records written successfully to the destination table.
+* **`duplicate_record_count`**: Gross row duplication counters.
+* **`invalid_record_count`**: Total failure rows excluded during the network stream.
+* **`invalid_records`**: A data frame containing the rows that failed validation.
+
+
+#### Data Validations
+
+| Validations             | Description                                                                                                                                                                                                                                                                                                    |
+|:---------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Invalid Input**    | Required argument is missing                                                                                                                                                                                                                                                                                   |
+| **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type. <br>2. More than one dataset cannot be published into a project<br>3. Only the project owner can publish datasets into a project. |
+| **dataset_name**     | 1. Maximum length of 15 characters and must only contain alphanumeric characters and underscores<br> 2. This is the new name of the resulting dataset created by the user                                                                                                                                                                                                                  |
+| **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `None`) in any row<br> 3. Maps directly to the server-side metrics payload: `valid_record_count`, `duplicate_record_count`, and `invalid_record_count` without double-penalizing overlapping row states.                                                 |
+| **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
+| **data**             | Invalid column name '{column.name}', it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
+| **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.                                                                                                                  |
+
+### Data Validation Failures
+- When validation fails, the SDK returns the original data frame with an appended `error` column.
+- Each invalid record appears once per error type (a row with multiple errors produces multiple result rows).
+- Supported error names: `NULL_KEY` (null/empty value in key column), `INVALID_VALUE` (invalid value in key column).
+- A summary is printed to the console for immediate visibility.
+- The full invalid records table is accessible programmatically from the error object.
+
+
 
 ### close()
 
