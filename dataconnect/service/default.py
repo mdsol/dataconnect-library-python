@@ -2,65 +2,38 @@
 
 from __future__ import annotations
 
+import json
 from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.exceptions import (
-    AuthenticationError,
-    AuthorizationError,
-    ConnectionError,
-    DataConnectError,
-    NotFoundError,
-    QueryError,
-    ServerError,
-    ValidationError,
+from dataconnect.models import (
+    Dataset,
+    DatasetVersion,
+    DryPublishResult,
+    PaginatedResponse,
+    Pagination,
+    PublishResult,
+    StudiesResult,
 )
-from dataconnect.models import Dataset, DatasetVersion, Study
 from dataconnect.service.base import DataConnectService
+from dataconnect.service.error_handler import translate_error
 from dataconnect.service.mappers import (
+    dry_publish_response_to_domain,
+    publish_response_to_domain,
     resource_to_dataset,
     resource_to_dataset_version,
     resource_to_fetched_data,
     resource_to_study,
 )
-from dataconnect.service.validators import validate_search_study_name
 from dataconnect.transport.base import Transport
-from dataconnect.transport.errors import (
-    TransportAuthenticationError,
-    TransportAuthorizationError,
-    TransportConnectionError,
-    TransportError,
-    TransportIOError,
-    TransportNotFoundError,
-    TransportStatusError,
-)
-from dataconnect.transport.models import ResourceQuery
+from dataconnect.transport.errors import TransportError
+from dataconnect.transport.models import DatasetTicket, PublishRequest, ResourceQuery
 
 # Server action identifiers
 _ACTION_LIST_STUDIES = "studies.list"
 _ACTION_LIST_DATASETS = "datasets.list"
 _ACTION_LIST_DATASET_VERSIONS = "dataset_versions.list"
-_ACTION_FETCH_TICKET = "data.fetch_ticket"
-
-
-def _translate_error(ex: TransportError) -> DataConnectError:
-    """Map a ``TransportError`` to the appropriate public ``DataConnectError``."""
-
-    if isinstance(ex, TransportAuthenticationError):
-        return AuthenticationError(str(ex))
-    if isinstance(ex, TransportAuthorizationError):
-        return AuthorizationError(str(ex))
-    if isinstance(ex, TransportNotFoundError):
-        return NotFoundError(str(ex))
-    if isinstance(ex, TransportStatusError):
-        return ServerError(str(ex), status_code=ex.status_code)
-    if isinstance(ex, TransportConnectionError):
-        return ConnectionError(str(ex))
-    if isinstance(ex, TransportIOError):
-        return QueryError(str(ex))
-
-    return ServerError(str(ex))
 
 
 class DefaultDataConnectService(DataConnectService):
@@ -71,69 +44,69 @@ class DefaultDataConnectService(DataConnectService):
 
     # DataConnectService
 
-    def get_studies(self, search_study_name: str | None = None) -> list[Study]:
+    def get_studies(self, search_study_name: str | None = None) -> StudiesResult:
+        """List studies the authenticated user can access.
 
-        validate_search_study_name(search_study_name)
+        Args:
+            search_study_name: Optional full or partial study name filter.
+
+        Returns:
+            A :class:`StudiesResult` containing:
+            - ``total_records``: total number of studies accessible to the authenticated user.
+            - ``studies``: list of :class:`Study` objects matching the criteria.
+        """
 
         request = ResourceQuery(action=_ACTION_LIST_STUDIES)
-        if search_study_name and search_study_name.strip() != "":
-            request = request.append_body({"search_study_name": search_study_name})
+        request = request.append_body({"search_study_name": search_study_name})
 
         try:
             resources = self._transport.list_resources(request)
-        except TransportError as ex:
-            raise _translate_error(ex) from ex
-
-        try:
-            return [resource_to_study(r) for r in resources]
-        except (IndexError, KeyError, TypeError, ValueError) as ex:
-            raise ValidationError(f"Unexpected studies response format: {ex}") from ex
+            total_records = resources[0].total_records if resources else 0
+            studies = [resource_to_study(r) for r in resources]
+            return StudiesResult(total_records=total_records, studies=studies)
+        except Exception as ex:
+            raise translate_error(ex) from ex
 
     def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]:
-        # Input validation: ensure callers pass a UUID
-        if not isinstance(dataset_uuid, UUID):
-            raise ValidationError("dataset_uuid must be a valid UUID")
+        """List available versions for a dataset.
 
-        if dataset_uuid.int == 0:
-            raise ValidationError("dataset_uuid must not be empty")
+        Args:
+            dataset_uuid: UUID of the dataset whose versions are requested.
+
+        Returns:
+            A list of :class:`DatasetVersion` objects for the given dataset.
+
+        Raises:
+            ValidationError: If *dataset_uuid* is not a valid UUID (upstream).
+        """
 
         request = ResourceQuery(action=_ACTION_LIST_DATASET_VERSIONS).append_body({"dataset_uuid": str(dataset_uuid)})
 
         try:
             resources = self._transport.list_resources(request)
-        except TransportError as ex:
-            raise _translate_error(ex) from ex
 
-        try:
-            return [resource_to_dataset_version(r) for r in resources]
-        except (IndexError, KeyError, TypeError, ValueError) as ex:
-            raise ValidationError(f"Unexpected dataset versions response format: {ex}") from ex
+            # Return Sorted dataset versions in descending order (newest first) based on the dataset_version field.
+            return sorted(
+                (resource_to_dataset_version(r) for r in resources),
+                key=lambda dv: dv.dataset_version,
+                reverse=True,
+            )
+        except Exception as ex:
+            raise translate_error(ex) from ex
 
     def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None) -> pd.DataFrame:
+        """Fetch data for a dataset"""
 
-        if not dataset_uuid or not str(dataset_uuid).strip():
-            raise ValueError("dataset_uuid must be provided.")
-
-        if dataset_uuid.int == 0:
-            raise ValueError("dataset_uuid must not be an empty UUID.")
-
-        if first_n_rows is not None and (not isinstance(first_n_rows, int) or first_n_rows <= 0):
-            raise ValueError("first_n_rows must be a positive integer when provided.")
-
-        request = ResourceQuery(action=_ACTION_FETCH_TICKET).append_body(
-            {
-                "study_env_uuid": None,
-                "dataset_name": None,
-                "dataset_uuid": str(dataset_uuid),
-                "limit": first_n_rows,
-            }
+        ticket = DatasetTicket(
+            dataset_uuid=str(dataset_uuid),
+            limit=first_n_rows,
         )
 
         try:
-            table = self._transport.do_get(request)
+            table = self._transport.get_ticket(ticket)
             return resource_to_fetched_data(table)
         except TransportError as ex:
-            raise _translate_error(ex) from ex
+            raise translate_error(ex) from ex
 
     def get_datasets(
         self,
@@ -141,7 +114,7 @@ class DefaultDataConnectService(DataConnectService):
         search_dataset_name: str = "",
         page: int = 1,
         page_size: int = 50,
-    ) -> list[Dataset]:
+    ) -> PaginatedResponse[Dataset]:
         """List datasets for a study environment.
 
         Args:
@@ -151,13 +124,8 @@ class DefaultDataConnectService(DataConnectService):
             page_size: Number of results per page.
 
         Returns:
-            A list of :class:`Dataset` items matching the criteria.
+            A :class:`PaginatedResponse` of :class:`Dataset` items matching the criteria.
         """
-        if not isinstance(study_environment_uuid, UUID):
-            raise ValidationError("study_environment_uuid must be a valid UUID")
-
-        if study_environment_uuid.int == 0:
-            raise ValidationError("study_environment_uuid must not be empty")
 
         request = ResourceQuery(action=_ACTION_LIST_DATASETS).append_body(
             {
@@ -170,17 +138,148 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             resources = self._transport.list_resources(request)
+            items = [resource_to_dataset(r) for r in resources]
+            total_records = resources[0].total_records if resources else 0
+            total_pages = (total_records + page_size - 1) // page_size if page_size > 0 else 0
+            return PaginatedResponse(
+                total_records=total_records,
+                pagination=Pagination(page=page, page_size=page_size, total_pages=total_pages),
+                items=items,
+            )
         except TransportError as ex:
-            raise _translate_error(ex) from ex
+            raise translate_error(ex) from ex
+
+    def dry_publish(
+        self,
+        project_token: str,
+        dataset_name: str,
+        key_columns: list[str],
+        source_datasets: list[UUID],
+        data: pd.DataFrame,
+        datetime_formats: dict[str, str] | None = None,
+    ) -> DryPublishResult:
+        """Validate a dataset against the server without committing any changes.
+
+        Encodes the publish configuration as a JSON ``input_config`` string,
+        sets ``is_dry_publish: True`` so the server treats the call as a
+        validation-only run, then delegates to the transport layer.
+
+        The server response is mapped to a :class:`DryPublishResult` via
+        :func:`dry_publish_response_to_domain`.
+
+        Args:
+            project_token: Base64-encoded project token identifying the target
+                study, study environment, and project.
+            dataset_name: Name of the dataset to validate.
+            key_columns: Column names that form the unique key for the dataset.
+            source_datasets: UUIDs of the source datasets the published dataset
+                is derived from.
+            data: The dataset to validate as a ``pd.DataFrame``.
+            datetime_formats: Optional mapping of column name → datetime format
+                string (e.g. ``{"visit_date": "yyyy-MM-dd"}``).  Defaults to
+                an empty dict when omitted.
+
+        Returns:
+            A :class:`DryPublishResult` containing the server's validation
+            outcome, including per-field validity flags, error messages, and
+            an optional ``invalid_records`` DataFrame.
+
+        Raises:
+             DataConnectError: Any :class:`TransportError` from the transport
+             layer is translated by :func:`translate_error` into the public
+             API's :class:`DataConnectError` hierarchy before propagating,
+             for example :class:`ValidationError`,
+             :class:`AuthorizationError`, or :class:`ServerError`."""
+
+        request = PublishRequest(
+            input_config=json.dumps(
+                {
+                    "is_dry_publish": True,
+                    "project_token": project_token,
+                    "dataset_name": dataset_name,
+                    "dataset_description": dataset_name,
+                    "key_columns": key_columns,
+                    "source_datasets": [str(uuid) for uuid in source_datasets],
+                    "datetime_formats": datetime_formats or {},
+                }
+            ),
+            data=data,
+        )
 
         try:
-            return [resource_to_dataset(r) for r in resources]
-        except (IndexError, KeyError, TypeError, ValueError) as ex:
-            raise ValidationError(f"Unexpected datasets response format: {ex}") from ex
+            publish_result = self._transport.dry_publish_dataset(request)
+
+            return dry_publish_response_to_domain(publish_result)
+
+        except TransportError as ex:
+            raise translate_error(ex) from ex
+
+    def publish(
+        self,
+        project_token: str,
+        dataset_name: str,
+        key_columns: list[str],
+        source_datasets: list[UUID],
+        data: pd.DataFrame,
+        datetime_formats: dict[str, str] | None = None,
+    ) -> PublishResult:
+        """Publish a dataset to the server and return the result.
+
+        Encodes the publish configuration as a JSON ``input_config`` string,
+        sets ``is_dry_publish: False`` so the server treats the call as a
+        live publish run, then delegates to the transport layer.
+
+        The server response is mapped to a :class:`PublishResult` via
+        :func:`publish_response_to_domain`.
+
+        Args:
+            project_token: Base64-encoded project token identifying the target
+                study, study environment, and project.
+            dataset_name: Name of the dataset to publish.
+            key_columns: Column names that form the unique key for the dataset.
+            source_datasets: UUIDs of the source datasets the published dataset
+                is derived from.
+            data: The dataset to publish as a ``pd.DataFrame``.
+            datetime_formats: Optional mapping of column name → datetime format
+                string (e.g. ``{"visit_date": "yyyy-MM-dd"}``).  Defaults to
+                an empty dict when omitted.
+
+        Returns:
+            A :class:`PublishResult` containing the server's publish outcome,
+            including dataset UUID, version, and record counts.
+
+        Raises:
+            DataConnectError: Any :class:`TransportError` from the transport
+                layer is translated by :func:`translate_error` into the public
+                API's :class:`DataConnectError` hierarchy before propagating.
+        """
+        request = PublishRequest(
+            input_config=json.dumps(
+                {
+                    "is_dry_publish": False,
+                    "project_token": project_token,
+                    "dataset_name": dataset_name,
+                    "dataset_description": dataset_name,
+                    "key_columns": key_columns,
+                    "source_datasets": [str(uuid) for uuid in source_datasets],
+                    "datetime_formats": datetime_formats or {},
+                }
+            ),
+            data=data,
+        )
+
+        try:
+            publish_result = self._transport.publish_dataset(request)
+
+            return publish_response_to_domain(publish_result)
+
+        except TransportError as ex:
+            raise translate_error(ex) from ex
 
     def close(self) -> None:
+        """Close the underlying transport connection."""
 
         try:
             self._transport.close()
         except TransportError as ex:
-            raise ConnectionError(str(ex)) from ex
+            raise translate_error(ex) from ex
