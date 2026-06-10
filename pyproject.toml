@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dataconnect-library-python"
-version = "0.1.0"
+version = "1.0.0"
 description = "Python library built by Medidata for connecting to Data Connect and programmatically querying and retrieving data."
 authors = ["Team 348 (SDK) <List_custom_t348_cds_sdk@3ds.com>"]
 packages = [{include = "dataconnect"}]
@@ -18,8 +18,8 @@ url = "https://mdsol.jfrog.io/artifactory/api/pypi/pypi-prod-virtual/simple"
 #
 [tool.poetry.dependencies]
 python = "^3.13"
-pyarrow = "^19.0.0"
-pandas = "^2.0.2"
+pyarrow = ">=19,<25"
+pandas = ">=2.0.2,<4.0.0"
 
 # SERVICE
 [tool.poetry.group.service]
@@ -40,7 +40,7 @@ optional = true
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.20.2"
-pre-commit = "^3.3.2"
+pre-commit = ">=3.3.2,<5.0.0"
 pytest = ">=7.3.2,<10.0.0"
 pytest-cov = ">=4.1,<8.0"
 ruff = "0.15.12"
