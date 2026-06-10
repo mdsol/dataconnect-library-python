@@ -19,7 +19,7 @@ url = "https://mdsol.jfrog.io/artifactory/api/pypi/pypi-prod-virtual/simple"
 [tool.poetry.dependencies]
 python = "^3.13"
 pyarrow = ">=19,<25"
-pandas = "^2.0.2"
+pandas = ">=2.0.2,<4.0.0"
 
 # SERVICE
 [tool.poetry.group.service]
