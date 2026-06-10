@@ -8,13 +8,44 @@ public ``DataConnectError`` subtypes.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
+from typing import Any
 
+
+@dataclass
+class ErrorDetail:
+    field: str | None = None
+    message: str | None = None
+    expected: str | None = None
+    extra: dict[str, Any] = dataclass_field(default_factory=dict)
+
+    def __str__(self) -> str:
+        lines = ["\n  Error Detail:"]
+
+        if self.field is not None:
+            lines.append(f"    Field: {self.field}")
+
+        if self.message is not None:
+            lines.append(f"    Message: {self.message}")
+
+        if self.expected is not None:
+            lines.append(f"    Expected: {self.expected}")
+
+        for k, v in self.extra.items():
+            lines.append(f"    {k}: {v}")
+
+        return "\n".join(lines)
+
+
+@dataclass
 class TransportError(Exception):
     """Base class for all transport-layer errors."""
 
-
-class TransportConnectionError(TransportError):
-    """Raised when a connection to the server cannot be established."""
+    error_code: str
+    message: str
+    timestamp: str | None = None
+    details: list[ErrorDetail] | None = None
 
 
 class TransportAuthenticationError(TransportError):
@@ -25,21 +56,13 @@ class TransportAuthorizationError(TransportError):
     """Raised on authorization failures."""
 
 
-class TransportStatusError(TransportError):
-    """Raised when the server returns an explicit error status."""
-
-    def __init__(self, message: str, status_code: int, grpc_status: str = "") -> None:
-        super().__init__(message)
-        self.status_code = status_code
-        self.grpc_status = grpc_status
+class TransportValidationError(TransportError):
+    """Raised on validation failures."""
 
 
-class TransportNotFoundError(TransportStatusError):
+class TransportNotFoundError(TransportError):
     """Raised when the server returns not-found response."""
 
-    def __init__(self, message: str) -> None:
-        super().__init__(message, status_code=5, grpc_status="NOT_FOUND")
 
-
-class TransportIOError(TransportError):
-    """Raised when reading from or writing to a data stream fails."""
+class TransportServerError(TransportError):
+    """Raised when the server returns an internal error status."""
