@@ -7,14 +7,21 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.models import Dataset, DatasetVersion, Study
+from dataconnect.models import (
+    Dataset,
+    DatasetVersion,
+    DryPublishResult,
+    PaginatedResponse,
+    PublishResult,
+    StudiesResult,
+)
 
 
 class DataConnectService(ABC):
     """Abstract service interface — defines all operations available to the client."""
 
     @abstractmethod
-    def get_studies(self, search_study_name: str | None = None) -> list[Study]: ...
+    def get_studies(self, search_study_name: str | None = None) -> StudiesResult: ...
 
     @abstractmethod
     def get_datasets(
@@ -23,7 +30,7 @@ class DataConnectService(ABC):
         search_dataset_name: str = "",
         page: int = 1,
         page_size: int = 50,
-    ) -> list[Dataset]: ...
+    ) -> PaginatedResponse[Dataset]: ...
 
     @abstractmethod
     def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]: ...
@@ -34,6 +41,32 @@ class DataConnectService(ABC):
         dataset_uuid: UUID,
         first_n_rows: int | None = None,
     ) -> pd.DataFrame: ...
+
+    @abstractmethod
+    def dry_publish(
+        self,
+        project_token: str,
+        dataset_name: str,
+        key_columns: list[str],
+        source_datasets: list[UUID],
+        data: pd.DataFrame,
+        datetime_formats: dict[str, str] | None = None,
+    ) -> DryPublishResult:
+        """Validate a dataset against the server without persisting any changes."""
+        ...
+
+    @abstractmethod
+    def publish(
+        self,
+        project_token: str,
+        dataset_name: str,
+        key_columns: list[str],
+        source_datasets: list[UUID],
+        data: pd.DataFrame,
+        datetime_formats: dict[str, str] | None = None,
+    ) -> PublishResult:
+        """Publish a dataset to the server and return the result."""
+        ...
 
     @abstractmethod
     def close(self) -> None: ...
