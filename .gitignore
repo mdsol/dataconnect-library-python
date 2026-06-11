@@ -6,6 +6,11 @@ __pycache__/
 # C extensions
 *.so
 
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+!dataconnect_usage.ipynb
+
 # Distribution / packaging
 .Python
 build/

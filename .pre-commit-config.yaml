@@ -1,29 +1,47 @@
+# Pre-commit hook configuration
+# Docs: https://pre-commit.com/
+#
+# Install:
+#   pip install pre-commit        # or: poetry install --with lint
+#   pre-commit install            # register the git hook
+#
+# Run manually against all files:
+#   pre-commit run --all-files
+#
+# Update hook revisions to latest:
+#   pre-commit autoupdate
+
+default_language_version:
+  # Use the system 'python3' interpreter so pre-commit picks up the active
+  # Python in your PATH (or the project's virtualenv). This avoids failures
+  # when a specific patch-level interpreter like python3.11 is not installed.
+  python: python3
+
 repos:
-  - repo: https://github.com/ambv/black
-    # rev must match pyproject.toml
-    rev: 23.3.0
+  # ---------------------------------------------------------------------------
+  # General hygiene
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
     hooks:
-      - id: black
-        args: ["-l", "100"]
-  - repo: https://github.com/myint/autoflake
-    # rev must match pyproject.toml
-    rev: v1.4 # rev depends on tag name in git not pip version number (thus the v prefix is required here)
+      - id: trailing-whitespace       # strip trailing whitespace
+      - id: end-of-file-fixer         # ensure files end with a newline
+      - id: check-yaml                # validate YAML syntax
+      - id: check-toml                # validate TOML syntax
+      - id: check-json                # validate JSON syntax
+      - id: check-merge-conflict      # forbid merge-conflict markers
+      - id: check-added-large-files   # warn on large committed files
+        args: ["--maxkb=1024"]
+      - id: debug-statements          # catch leftover debugger imports
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  # ---------------------------------------------------------------------------
+  # Ruff – fast Python linter (replaces flake8, isort, pyupgrade, …)
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.11
     hooks:
-      - id: autoflake
-        args:
-          [
-            "--in-place",
-            "--remove-all-unused-imports",
-            "--ignore-init-module-imports",
-          ]
-  - repo: https://github.com/PyCQA/isort
-    # rev must match pyproject.toml
-    rev: 5.12.0
-    hooks:
-      - id: isort
-        args: ["--profile", "black", "-l", "100"]
-#  - repo: git@github.com:mdsol/git-config-checker.git
-#    rev: 0.1.1
-#    hooks:
-#      - id: git-config-checker
-#        args: ["--checks", "emailDomain"]
+      - id: ruff                      # lint + auto-fix
+        args: ["--fix", "--exit-non-zero-on-fix"]
+      - id: ruff-format               # format (Black-compatible)

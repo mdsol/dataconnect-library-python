@@ -1,4 +1,7 @@
 #!/bin/bash
 
+set -e
 
-mypy --strict python_template
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+mypy --strict "$PROJECT_ROOT/dataconnect"

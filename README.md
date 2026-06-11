@@ -1,30 +1,17 @@
-# Data Connect Python Library
-Python library built by Medidata for connecting to Data Connect and programmatically querying and retrieving data.
+# Medidata DataConnect Python library
 
+## Overview
 
-## Installation
+This Python library is built by Medidata to give technical users of Medidata Clinical Data Studio and Medidata Data Connect, including clinical programmers, data scientists, and statisticians, access to relevant data directly within their existing Python environment. You can use it with core Python functionality and other Python libraries in your workflow.
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for installation instructions.
+**Note**: This Python library is supported for use in Python environments only. Compatibility with non-Python IDEs is not guaranteed or supported.
 
-## To Dos
+# Versioned Documentation
 
-The following actions are needed when using this as the template for a new python project:
+This directory contains documentation snapshots for each release of the `dataconnect` Python library.
 
-- [ ] Update `readme.md` for new project
-- [ ] Update `factbook.yaml` for new project
-- [ ] Update `pyproject.toml` with relevant `name`, `description`, and `authors` and remove unneeded dep groups
+## Available Versions
 
-- [ ] Remove all example code files (leave `__init__.py` in place)
-- [X] Rename all references to `python-template` and `python_template` to new module/folder names
-- [ ] Remove all example test files and all code from `conftest.py` (leave the docstring in place)
-- [ ] Add placeholder tests so PR passes
-- [ ] Get GH Admins to add mdsol robot key so PR passes
-- [ ] Add Artifactory robot account info so PR passes
-
-## Contributing
-
-See [CONTRIBUTING](CONTRIBUTING.md).
-
-## Contact
-
-See the [factbook](factbook.yaml).
+| Version | Documentation                               | Current version |
+|---------|---------------------------------------------|-----------------|
+|1.0.0    | [README-v1.0.0.md](readme/README-v1.0.0.md) | Yes             |

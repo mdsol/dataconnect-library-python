@@ -9,7 +9,7 @@
 - [ ] Make sure the pull request does not have excessive number of unnecessary commits. Utilize the `git commit --amend --no-edit` command to reduce commit messages when making small file changes (*like changing linespacing*).
 - [ ] Make sure you have added unit tests for the code changes. Tests should be added in the `tests/` folder.
 - [ ] Modify docs, if required. Add any new documentation in the `doc/` folder.
-- [ ] Rebase on latest active development branch (develop/main). 
+- [ ] Rebase on latest active development branch (develop/main).
 
 ### Changes Summary
 
