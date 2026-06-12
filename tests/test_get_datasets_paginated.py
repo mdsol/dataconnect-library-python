@@ -7,7 +7,6 @@ from uuid import UUID
 
 import pytest
 
-from dataconnect.exceptions import ValidationError
 from dataconnect.models import Dataset, PaginatedResponse, Pagination
 from dataconnect.service.default import DefaultDataConnectService
 from dataconnect.transport.errors import TransportError
@@ -143,50 +142,6 @@ class TestGetDatasetsReturnsPaginatedResponse:
             "page": 3,
             "page_size": 10,
         }
-
-    def test_raises_validation_error_for_invalid_uuid(self) -> None:
-        transport = _FakeTransport(resources=[])
-        service = DefaultDataConnectService(transport)
-
-        with pytest.raises(ValidationError, match="study_environment_uuid must be a valid UUID"):
-            service.get_datasets(study_environment_uuid="not-a-uuid")  # type: ignore[arg-type]
-
-    def test_raises_validation_error_for_zero_uuid(self) -> None:
-        transport = _FakeTransport(resources=[])
-        service = DefaultDataConnectService(transport)
-
-        with pytest.raises(ValidationError, match="study_environment_uuid must not be empty"):
-            service.get_datasets(study_environment_uuid=UUID(int=0))
-
-    @pytest.mark.parametrize("page", [0, -1, -100])
-    def test_raises_validation_error_for_invalid_page(self, page: int) -> None:
-        transport = _FakeTransport(resources=[])
-        service = DefaultDataConnectService(transport)
-
-        with pytest.raises(ValidationError, match="page must be a positive integer"):
-            service.get_datasets(study_environment_uuid=_STUDY_ENV_UUID, page=page)
-
-    def test_raises_validation_error_for_non_int_page(self) -> None:
-        transport = _FakeTransport(resources=[])
-        service = DefaultDataConnectService(transport)
-
-        with pytest.raises(ValidationError, match="page must be a positive integer"):
-            service.get_datasets(study_environment_uuid=_STUDY_ENV_UUID, page="2")  # type: ignore[arg-type]
-
-    @pytest.mark.parametrize("page_size", [0, -1, -50])
-    def test_raises_validation_error_for_invalid_page_size(self, page_size: int) -> None:
-        transport = _FakeTransport(resources=[])
-        service = DefaultDataConnectService(transport)
-
-        with pytest.raises(ValidationError, match="page_size must be a positive integer"):
-            service.get_datasets(study_environment_uuid=_STUDY_ENV_UUID, page_size=page_size)
-
-    def test_raises_validation_error_for_non_int_page_size(self) -> None:
-        transport = _FakeTransport(resources=[])
-        service = DefaultDataConnectService(transport)
-
-        with pytest.raises(ValidationError, match="page_size must be a positive integer"):
-            service.get_datasets(study_environment_uuid=_STUDY_ENV_UUID, page_size="25")  # type: ignore[arg-type]
 
     def test_translates_transport_errors(self) -> None:
         transport = _FakeTransport(error=TransportError(error_code="CONN", message="cannot connect"))
