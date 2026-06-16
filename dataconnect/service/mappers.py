@@ -64,7 +64,13 @@ def resource_to_fetched_data(table: DataTable) -> pd.DataFrame:
 
     ipc_buffer = pa.BufferReader(table.ipc_bytes)
     with pa.ipc.open_stream(ipc_buffer) as reader:
-        return reader.read_all().to_pandas(types_mapper=pd.ArrowDtype)
+        arrow_table = reader.read_all()
+
+    # Clear schema metadata so types_mapper reliably maps Arrow types to ArrowDtype
+    # (embedded pandas metadata can override types_mapper, causing object dtypes).
+    arrow_table = arrow_table.replace_schema_metadata(None)
+
+    return arrow_table.to_pandas(types_mapper=pd.ArrowDtype)
 
 
 def resource_to_dataset(resource: ResourceInfo) -> Dataset:
