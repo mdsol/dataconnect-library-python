@@ -10,6 +10,7 @@ import pandas as pd
 from dataconnect.models import (
     Dataset,
     DatasetVersion,
+    DatetimeFormatsResult,
     DryPublishResult,
     PaginatedResponse,
     PublishResult,
@@ -66,6 +67,15 @@ class DataConnectService(ABC):
         datetime_formats: dict[str, str] | None = None,
     ) -> PublishResult:
         """Publish a dataset to the server and return the result."""
+        ...
+
+    @abstractmethod
+    def get_datetime_formats(
+        self,
+        project_token: str,
+        format_type: str = "all",
+    ) -> DatetimeFormatsResult:
+        """Return the supported datetime formats filtered by ``format_type``."""
         ...
 
     @abstractmethod

@@ -15,6 +15,7 @@ import pandas as pd
 from dataconnect.models import (
     Dataset,
     DatasetVersion,
+    DatetimeFormatsResult,
     DryPublishResult,
     PaginatedResponse,
     PublishResult,
@@ -167,6 +168,32 @@ class DataConnectClient:
             source_datasets=source_datasets,
             data=data,
             datetime_formats=datetime_formats,
+        )
+
+    def get_datetime_formats(
+        self,
+        project_token: str,
+        format_type: str = "all",
+    ) -> DatetimeFormatsResult:
+        """Return the supported datetime formats filtered by ``format_type``.
+
+        Delegates directly to :meth:`DataConnectService.get_datetime_formats`.
+
+        Args:
+            project_token: Base64-encoded project token identifying the target
+                study, study environment, and project.
+            format_type: Server-side filter to apply.  One of ``"all"``
+                (default), ``"date"``, or ``"datetime"``.
+
+        Returns:
+            A :class:`DatetimeFormatsResult` exposing the classified list via
+            :meth:`~DatetimeFormatsResult.all` and the type-filtered views via
+            :meth:`~DatetimeFormatsResult.dates` and
+            :meth:`~DatetimeFormatsResult.datetimes`.
+        """
+        return self._service.get_datetime_formats(
+            project_token=project_token,
+            format_type=format_type,
         )
 
     # Lifecycle

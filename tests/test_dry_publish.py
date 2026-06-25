@@ -18,7 +18,7 @@ import pyarrow as pa
 import pytest
 
 from dataconnect.exceptions import ValidationError
-from dataconnect.models import DryPublishResult
+from dataconnect.models import DatetimeFormatsResult, DryPublishResult
 from dataconnect.service.default import DefaultDataConnectService
 from dataconnect.service.mappers import dry_publish_response_to_domain
 from dataconnect.transport.arrow_flight.transport import (
@@ -231,6 +231,9 @@ class _StubTransport(Transport):
         return self._return  # type: ignore[return-value]
 
     def publish_dataset(self, publish_request: PublishRequest) -> PublishResponse:
+        raise NotImplementedError
+
+    def get_datetime_formats(self, request: DatetimeFormatsResult) -> list[str]:  # type: ignore[override]
         raise NotImplementedError
 
     def close(self) -> None:

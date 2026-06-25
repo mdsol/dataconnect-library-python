@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from uuid import UUID
 
 import pandas as pd
 
+from dataconnect.exceptions import ValidationError
 from dataconnect.models import (
     Dataset,
     DatasetVersion,
+    DatetimeFormat,
+    DatetimeFormatsResult,
     DryPublishResult,
     PaginatedResponse,
     Pagination,
@@ -28,12 +32,21 @@ from dataconnect.service.mappers import (
 )
 from dataconnect.transport.base import Transport
 from dataconnect.transport.errors import TransportError
-from dataconnect.transport.models import DatasetTicket, PublishRequest, ResourceQuery
+from dataconnect.transport.models import (
+    DatasetTicket,
+    DatetimeFormatsRequest,
+    PublishRequest,
+    ResourceQuery,
+)
 
 # Server action identifiers
 _ACTION_LIST_STUDIES = "studies.list"
 _ACTION_LIST_DATASETS = "datasets.list"
 _ACTION_LIST_DATASET_VERSIONS = "dataset_versions.list"
+
+# Accepted values for the ``format_type`` filter passed to
+# :meth:`DefaultDataConnectService.get_datetime_formats`.
+_VALID_DATETIME_FORMAT_TYPES: frozenset[str] = frozenset({"all", "date", "datetime"})
 
 
 class DefaultDataConnectService(DataConnectService):
@@ -275,6 +288,69 @@ class DefaultDataConnectService(DataConnectService):
 
         except TransportError as ex:
             raise translate_error(ex) from ex
+
+    def get_datetime_formats(
+        self,
+        project_token: str,
+        format_type: str = "all",
+    ) -> DatetimeFormatsResult:
+        """Return the supported datetime formats filtered by ``format_type``.
+
+        The ``format_type`` argument is normalised (stripped + lower-cased) and
+        validated client-side against the accepted set ``{"all", "date",
+        "datetime"}``.  Invalid values raise :class:`ValidationError` *before*
+        any transport call is made.
+
+        The server filters the list according to ``format_type``; the service
+        then classifies each returned format as ``"date"`` or ``"datetime"``
+        (based on whether the format contains a time component ``"HH:mm"``) and
+        wraps everything in a :class:`DatetimeFormatsResult` that exposes the
+        :meth:`~DatetimeFormatsResult.all`,
+        :meth:`~DatetimeFormatsResult.dates` and
+        :meth:`~DatetimeFormatsResult.datetimes` helpers.
+
+        Args:
+            project_token: Base64-encoded project token identifying the target
+                study, study environment, and project.  Required by the server
+                for authorization.
+            format_type: Filter to apply server-side.  One of ``"all"``
+                (default), ``"date"``, or ``"datetime"``.
+
+        Returns:
+            A :class:`DatetimeFormatsResult` containing the classified formats.
+
+        Raises:
+            ValidationError: When ``format_type`` is not one of the accepted
+                values.
+            DataConnectError: Any :class:`TransportError` from the transport
+                layer is translated by :func:`translate_error` into the public
+                API's :class:`DataConnectError` hierarchy.
+        """
+        normalized = (format_type or "all").strip().lower()
+
+        if normalized not in _VALID_DATETIME_FORMAT_TYPES:
+            raise ValidationError(
+                error_code="VAL_001",
+                message=(f"Invalid format_type: {format_type!r}. Accepted values: all, date, datetime."),
+                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            )
+
+        request = DatetimeFormatsRequest(project_token=project_token, format_type=normalized)
+
+        try:
+            raw_formats = self._transport.get_datetime_formats(request)
+        except TransportError as ex:
+            raise translate_error(ex) from ex
+
+        formats = [
+            DatetimeFormat(
+                format=fmt,
+                type="datetime" if "HH:mm" in fmt else "date",
+            )
+            for fmt in raw_formats
+        ]
+
+        return DatetimeFormatsResult(formats=formats)
 
     def close(self) -> None:
         """Close the underlying transport connection."""
