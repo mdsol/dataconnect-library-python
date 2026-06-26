@@ -26,6 +26,7 @@ from dataconnect.transport.models import (
     DataRef,
     DatasetTicket,
     DataTable,
+    DatetimeFormatsRequest,
     DryPublishResponse,
     PublishRequest,
     PublishResponse,
@@ -378,6 +379,40 @@ class ArrowFlightTransport(Transport):
                 invalid_record_count=json_result.get("invalid_record_count", None),
                 invalid_records=result_table.to_pandas() if result_table else None,
             )
+
+        except Exception as ex:
+            raise parse_dataconnect_error(ex) from ex
+
+    def get_datetime_formats(self, request: DatetimeFormatsRequest) -> list[str]:
+        """Invoke the Arrow Flight ``get_datetime_formats`` action and return the format list.
+
+        The server expects a JSON body of the form
+        ``{"project_token": "...", "type": "all|date|datetime"}`` and responds
+        with a single :class:`flight.Result` whose body is a JSON-encoded list
+        of format strings already filtered server-side.
+
+        Args:
+            request: A :class:`DatetimeFormatsRequest` carrying the project
+                token and the (already-validated) ``format_type`` filter.
+
+        Returns:
+            A list of supported format strings.  Returns an empty list if the
+            server produced no results.
+
+        Raises:
+            TransportError: Any Arrow Flight or gRPC error is translated by
+                :func:`parse_dataconnect_error` before propagating.
+        """
+        payload = {"project_token": request.project_token, "type": request.format_type}
+        action = flight.Action("get_datetime_formats", json.dumps(payload).encode("utf-8"))
+
+        try:
+            results = list(self._client.do_action(action, self._options()))
+
+            if not results:
+                return []
+
+            return json.loads(results[0].body.to_pybytes().decode("utf-8"))
 
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex

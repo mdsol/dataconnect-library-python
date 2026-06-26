@@ -66,6 +66,21 @@ class DataTable:
 
 
 @dataclass(frozen=True)
+class DatetimeFormatsRequest:
+    """An outbound request to fetch the supported datetime formats.
+
+    Attributes:
+        project_token: Base64-encoded project token used by the server to
+            authorize the request.
+        format_type: Filter applied server-side. One of ``"all"``, ``"date"``,
+            or ``"datetime"``.
+    """
+
+    project_token: str
+    format_type: str = "all"
+
+
+@dataclass(frozen=True)
 class PublishRequest:
     """A publish request containing the input configuration and the dataset to be published.
 

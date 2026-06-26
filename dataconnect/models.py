@@ -97,3 +97,45 @@ class PublishResult:
     duplicate_record_count: int | None = None
     invalid_record_count: int | None = None
     invalid_records: pd.DataFrame | None = None
+
+
+@dataclass(frozen=True)
+class DatetimeFormat:
+    """A single supported datetime format string with its classification."""
+
+    format: str
+    """The format string as returned by the server (e.g. ``"yyyy-MM-dd"``)."""
+
+    type: str
+    """Either ``"date"`` (date-only) or ``"datetime"`` (date with time component)."""
+
+
+@dataclass
+class DatetimeFormatsResult:
+    """Result of a :meth:`DataConnectClient.get_datetime_formats` call.
+
+    Holds the full list of supported datetime formats returned by the server
+    and provides convenience accessors for the common views.
+
+    Examples:
+        >>> result = client.get_datetime_formats(project_token="...")
+        >>> for fmt in result.all():
+        ...     print(fmt.format, fmt.type)
+        >>> only_dates = result.dates()           # list[str]
+        >>> only_datetimes = result.datetimes()   # list[str]
+    """
+
+    formats: list[DatetimeFormat] = field(default_factory=list)
+    """The full list of supported formats, in the order returned by the server."""
+
+    def all(self) -> list[DatetimeFormat]:
+        """Return every supported format with its type classification."""
+        return list(self.formats)
+
+    def dates(self) -> list[str]:
+        """Return only the date-style format strings (no time component)."""
+        return [f.format for f in self.formats if f.type == "date"]
+
+    def datetimes(self) -> list[str]:
+        """Return only the datetime-style format strings (with a time component)."""
+        return [f.format for f in self.formats if f.type == "datetime"]

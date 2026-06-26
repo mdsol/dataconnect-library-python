@@ -29,6 +29,7 @@ from dataconnect.transport.errors import TransportValidationError
 from dataconnect.transport.models import (
     DatasetTicket,
     DataTable,
+    DatetimeFormatsRequest,
     DryPublishResponse,
     PublishRequest,
     PublishResponse,
@@ -164,6 +165,9 @@ class _StubTransport(Transport):
         if self._raise is not None:
             raise self._raise
         return self._return  # type: ignore[return-value]
+
+    def get_datetime_formats(self, request: DatetimeFormatsRequest) -> list[str]:  # type: ignore[override]
+        raise NotImplementedError
 
     def close(self) -> None:
         pass

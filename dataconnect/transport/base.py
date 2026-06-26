@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from dataconnect.transport.models import (
     DatasetTicket,
     DataTable,
+    DatetimeFormatsRequest,
     DryPublishResponse,
     PublishRequest,
     PublishResponse,
@@ -53,6 +54,15 @@ class Transport(ABC):
 
         All record batches from the stream are read and returned as a single
         ``PublishResponse`` containing the complete result set.
+        """
+
+    @abstractmethod
+    def get_datetime_formats(self, request: DatetimeFormatsRequest) -> list[str]:
+        """Return the supported datetime format strings for the project.
+
+        The transport does not interpret ``format_type`` — that is the service
+        layer's responsibility.  The server applies the filter and returns the
+        already-filtered list of format strings.
         """
 
     @abstractmethod
