@@ -74,6 +74,20 @@ To use this library, you must have a valid iMedidata account and access to requi
 
 * **Publish data:** You must have a project token to publish a dataset from your Python environment to Medidata Data Connect. You can generate this token through Data Connect > Transformations, by creating a Custom Code project. For details, visit the [knowledge hub](https://learn.medidata.com/en-US/bundle/data-connect/page/generate_custom_code_projects.html).
 
+#### Project Collaborators & Shared Tokens
+* **Shared Project Tokens:** Project tokens are project-scoped. A single project token can be used by multiple authorized collaborators working on the project.
+* **Collaborator Capabilities:** Any authorized collaborator can use the shared project token to perform both `dry_publish()` and `publish()` operations to the same Custom Code project.
+* **Management Permissions:** Only **Project Owners** (as designated in the UI) can add or remove collaborators.
+
+#### Publish Concurrency Locking
+* **Lock Behavior:** Only one active publish operation is permitted at a time. If a collaborator attempts to `publish()` while another user is actively publishing, the operation will be blocked.
+
+#### Troubleshooting
+* **Collaborator Access Failure:** If you receive an authorization or invalid token error, ensure your account is added as an authorized collaborator on the project. Contact a Project Owner to verify your access.
+* **Publish-Lock Failure:** If your publish is blocked due to a concurrent publish, wait a few minutes for the active execution to complete and retry.
+
+Note: After a successful `publish()` call, it can take approximately 15-20 minutes for the new dataset version to be reflected in the UI. This delay is expected and does not indicate an error.
+
 ## Functions
 
 The main public entry point is `DataconnectClient`.
@@ -210,7 +224,7 @@ Returns the result of publishing validations as a list containing clean, server-
 | Validations             | Description                                                                                                                                                                                                                                                                                                    |
 |:---------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Invalid Input**    | Required argument is missing                                                                                                                                                                                                                                                                                   |
-| **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type.<br>2. More than one dataset cannot be published into a project<br>3. Only the project owner can publish datasets into a project. |
+| **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type.<br>2. More than one dataset cannot be published into a project<br>3. Authorized collaborators and project owners can publish datasets into a project. |
 | **dataset_name**     | 1. Maximum length of 15 characters and must only contain alphanumeric characters and underscores<br> 2.  This is the new name of the resulting dataset created by the user                                                                                                                                                                                                            |
 | **key_columns** | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `None`) in any row<br> 3. Maps directly to the server-side metrics payload: `valid_record_count`, `duplicate_record_count`, and `invalid_record_count` without double-penalizing overlapping row states.                |
 | **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
@@ -257,7 +271,7 @@ Returns the status of publish as a list containing the final backend execution r
 | Validations             | Description                                                                                                                                                                                                                                                                                                    |
 |:---------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Invalid Input**    | Required argument is missing                                                                                                                                                                                                                                                                                   |
-| **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type. <br>2. More than one dataset cannot be published into a project<br>3. Only the project owner can publish datasets into a project. |
+| **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type. <br>2. More than one dataset cannot be published into a project<br>3. Authorized collaborators and project owners can publish datasets into a project. |  
 | **dataset_name**     | 1. Maximum length of 15 characters and must only contain alphanumeric characters and underscores<br> 2. This is the new name of the resulting dataset created by the user                                                                                                                                                                                                                  |
 | **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `None`) in any row<br> 3. Maps directly to the server-side metrics payload: `valid_record_count`, `duplicate_record_count`, and `invalid_record_count` without double-penalizing overlapping row states.                                                 |
 | **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
