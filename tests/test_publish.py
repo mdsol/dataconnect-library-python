@@ -20,7 +20,7 @@ import pytest
 
 from dataconnect.client import DataConnectClient
 from dataconnect.exceptions import ValidationError
-from dataconnect.models import DryPublishResult, PublishResult
+from dataconnect.models import DryPublishResult, PublishResult, ResultMetadata
 from dataconnect.service.default import DefaultDataConnectService
 from dataconnect.service.mappers import publish_response_to_domain
 from dataconnect.transport.arrow_flight.transport import ArrowFlightTransport
@@ -35,6 +35,8 @@ from dataconnect.transport.models import (
     PublishResponse,
     ResourceInfo,
     ResourceQuery,
+    ResponseMetadata,
+    ResponseMetrics,
 )
 
 # ---------------------------------------------------------------------------
@@ -43,19 +45,34 @@ from dataconnect.transport.models import (
 
 
 def _make_publish_response(**overrides: object) -> PublishResponse:
-    """Return a fully-populated ``PublishResponse`` with sensible defaults."""
-    defaults: dict = dict(
-        status=True,
-        dataset_name="demo_dataset",
-        dataset_uuid="0158ea12-4004-3817-899b-2de6becbc0f9",
-        dataset_version=1,
-        dataset_batch_number=1,
-        valid_record_count=10,
-        duplicate_record_count=0,
-        invalid_record_count=0,
-        invalid_records=None,
+    """Return a fully-populated ``PublishResponse``; overrides use the flat legacy names."""
+    flat: dict = {
+        "status": True,
+        "dataset_name": "demo_dataset",
+        "dataset_uuid": "0158ea12-4004-3817-899b-2de6becbc0f9",
+        "dataset_version": 1,
+        "dataset_batch_number": 1,
+        "valid_record_count": 10,
+        "duplicate_record_count": 0,
+        "invalid_record_count": 0,
+        "invalid_records": None,
+        **overrides,
+    }
+    return PublishResponse(
+        success=flat["status"],
+        metadata=ResponseMetadata(
+            dataset_name=flat["dataset_name"],
+            dataset_version=flat["dataset_version"],
+            dataset_uuid=flat["dataset_uuid"],
+            dataset_batch_number=flat["dataset_batch_number"],
+        ),
+        metrics=ResponseMetrics(
+            total_valid_rows=flat["valid_record_count"],
+            total_invalid_rows=flat["invalid_record_count"],
+            total_duplicate_rows=flat["duplicate_record_count"],
+        ),
+        invalid_records=flat["invalid_records"],
     )
-    return PublishResponse(**{**defaults, **overrides})
 
 
 def _make_json_buf(d: dict) -> pa.Buffer:
@@ -309,16 +326,26 @@ def _wire_do_put(
     return writer_mock, reader_mock
 
 
-# A minimal valid JSON response the server would return for a live publish call.
+# A minimal valid envelope the server would return for a live publish call.
 _VALID_JSON_RESP: dict = {
-    "status": True,
-    "dataset_name": "demo_dataset",
-    "dataset_uuid": "0158ea12-4004-3817-899b-2de6becbc0f9",
-    "dataset_version": 1,
-    "dataset_batch_number": 1,
-    "valid_record_count": 1,
-    "duplicate_record_count": 0,
-    "invalid_record_count": 0,
+    "success": True,
+    "metadata": {
+        "dataset_name": "demo_dataset",
+        "dataset_version": 1,
+        "column_count": 1,
+        "dataset_uuid": "0158ea12-4004-3817-899b-2de6becbc0f9",
+        "dataset_batch_number": 1,
+    },
+    "metrics": {"total_valid_rows": 1, "total_invalid_rows": 0, "total_duplicate_rows": 0},
+    "checks": {
+        "schema_is_valid": True,
+        "config_is_valid": True,
+        "date_formats_are_valid": True,
+        "dataset_is_valid": True,
+        "invalid_datetime_formats": {},
+    },
+    "errors": [],
+    "invalid_records": [],
 }
 
 
@@ -414,25 +441,26 @@ class TestPublishDatasetTransport:
 
     def test_status_parsed_from_json(self) -> None:
         transport = _make_flight_transport()
-        _wire_do_put(transport, {**_VALID_JSON_RESP, "status": False})
+        _wire_do_put(transport, {**_VALID_JSON_RESP, "success": False})
 
         result = transport.publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
-        assert result.status is False
+        assert result.success is False
 
     def test_dataset_uuid_parsed_from_json(self) -> None:
         transport = _make_flight_transport()
         uid = "aaaabbbb-1111-2222-3333-ccccddddeeee"
-        _wire_do_put(transport, {**_VALID_JSON_RESP, "dataset_uuid": uid})
+        _wire_do_put(transport, {**_VALID_JSON_RESP, "metadata": {**_VALID_JSON_RESP["metadata"], "dataset_uuid": uid}})
 
         result = transport.publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
-        assert result.dataset_uuid == uid
+        assert result.metadata.dataset_uuid == uid
 
     def test_dataset_version_parsed_from_json(self) -> None:
         transport = _make_flight_transport()
-        _wire_do_put(transport, {**_VALID_JSON_RESP, "dataset_version": 7})
+        metadata = {**_VALID_JSON_RESP["metadata"], "dataset_version": 7}
+        _wire_do_put(transport, {**_VALID_JSON_RESP, "metadata": metadata})
 
         result = transport.publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
-        assert result.dataset_version == 7
+        assert result.metadata.dataset_version == 7
 
     def test_none_ipc_buf_yields_no_invalid_records(self) -> None:
         transport = _make_flight_transport()
@@ -469,8 +497,8 @@ class _FakeService:
         dry_publish_return: DryPublishResult | None = None,
         publish_return: PublishResult | None = None,
     ) -> None:
-        self._dry_publish_return = dry_publish_return or DryPublishResult(status=True)
-        self._publish_return = publish_return or PublishResult(status=True)
+        self._dry_publish_return = dry_publish_return or DryPublishResult(success=True)
+        self._publish_return = publish_return or PublishResult(success=True)
         self.dry_publish_calls: list[dict] = []
         self.publish_calls: list[dict] = []
 
@@ -512,7 +540,7 @@ class TestClientDryPublish:
     """``DataConnectClient.dry_publish`` must delegate all arguments to the service."""
 
     def test_returns_dry_publish_result(self) -> None:
-        service = _FakeService(dry_publish_return=DryPublishResult(status=True))
+        service = _FakeService(dry_publish_return=DryPublishResult(success=True))
         client = DataConnectClient(service)  # type: ignore[arg-type]
         result = client.dry_publish(**_default_args())
         assert isinstance(result, DryPublishResult)
@@ -539,7 +567,7 @@ class TestClientDryPublish:
         assert call["datetime_formats"] is None
 
     def test_result_from_service_is_returned_unchanged(self) -> None:
-        expected = DryPublishResult(status=False, errors=["schema mismatch"])
+        expected = DryPublishResult(success=False, errors=["schema mismatch"])
         service = _FakeService(dry_publish_return=expected)
         client = DataConnectClient(service)  # type: ignore[arg-type]
         result = client.dry_publish(**_default_args())
@@ -550,7 +578,7 @@ class TestClientPublish:
     """``DataConnectClient.publish`` must delegate all arguments to the service."""
 
     def test_returns_publish_result(self) -> None:
-        service = _FakeService(publish_return=PublishResult(status=True))
+        service = _FakeService(publish_return=PublishResult(success=True))
         client = DataConnectClient(service)  # type: ignore[arg-type]
         result = client.publish(**_default_args())
         assert isinstance(result, PublishResult)
@@ -577,7 +605,7 @@ class TestClientPublish:
         assert call["datetime_formats"] is None
 
     def test_result_from_service_is_returned_unchanged(self) -> None:
-        expected = PublishResult(status=True, dataset_uuid="abc-123", dataset_version=2)
+        expected = PublishResult(success=True, metadata=ResultMetadata(dataset_uuid="abc-123", dataset_version=2))
         service = _FakeService(publish_return=expected)
         client = DataConnectClient(service)  # type: ignore[arg-type]
         result = client.publish(**_default_args())

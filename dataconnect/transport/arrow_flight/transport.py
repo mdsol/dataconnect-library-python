@@ -300,19 +300,8 @@ class ArrowFlightTransport(Transport):
             finally:
                 writer.close()  # terminates the RPC call — must happen after all reads
 
-            return DryPublishResponse(
-                status=json_result.get("status", False),
-                is_schema_valid=json_result.get("is_schema_valid", False),
-                is_config_valid=json_result.get("is_config_valid", False),
-                dataset_valid=json_result.get("dataset_valid", False),
-                errors=json_result.get("errors", []),
-                invalid_datetime_formats=json_result.get("invalid_datetime_formats", {}),
-                dataset_name=json_result.get("dataset_name", ""),
-                dataset_version=json_result.get("dataset_version", 0),
-                no_of_columns=json_result.get("no_of_columns", 0),
-                valid_record_count=json_result.get("valid_record_count", 0),
-                duplicate_record_count=json_result.get("duplicate_record_count", 0),
-                invalid_record_count=json_result.get("invalid_record_count", 0),
+            return DryPublishResponse.from_json(
+                json_result,
                 invalid_records=result_table.to_pandas() if result_table else None,
             )
 
@@ -368,15 +357,8 @@ class ArrowFlightTransport(Transport):
             finally:
                 writer.close()  # terminates the RPC call — must happen after all reads
 
-            return PublishResponse(
-                status=json_result.get("status", False),
-                dataset_name=json_result.get("dataset_name", None),
-                dataset_uuid=json_result.get("dataset_uuid", None),
-                dataset_version=json_result.get("dataset_version", None),
-                dataset_batch_number=json_result.get("dataset_batch_number", None),
-                valid_record_count=json_result.get("valid_record_count", None),
-                duplicate_record_count=json_result.get("duplicate_record_count", None),
-                invalid_record_count=json_result.get("invalid_record_count", None),
+            return PublishResponse.from_json(
+                json_result,
                 invalid_records=result_table.to_pandas() if result_table else None,
             )
 

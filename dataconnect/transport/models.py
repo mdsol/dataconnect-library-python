@@ -98,42 +98,90 @@ class PublishRequest:
 
 
 @dataclass(frozen=True)
-class DryPublishResponse:
-    """Transport-layer response from a dry-publish call.
+class ResponseMetadata:
+    """Identity of the dataset the server acted on."""
 
-    Carries the server's validation outcome for all rows and schema checks
-    without any data being persisted.
-    """
-
-    status: bool
-    is_schema_valid: bool
-    is_config_valid: bool
-    dataset_valid: bool
-    errors: list[str]
-    invalid_datetime_formats: dict[str, str]
-    dataset_name: str
-    dataset_version: int
-    no_of_columns: int
-    valid_record_count: int
-    duplicate_record_count: int
-    invalid_record_count: int = 0
-    invalid_records: pd.DataFrame | None = None
+    dataset_name: str | None = None
+    dataset_version: int | None = None
+    column_count: int | None = None
+    dataset_uuid: str | None = None
+    dataset_batch_number: int | None = None
 
 
 @dataclass(frozen=True)
-class PublishResponse:
-    """Transport-layer response from a live publish call.
+class ResponseMetrics:
+    """Row counts reported by the server."""
 
-    Carries the server's outcome after persisting the submitted dataset,
-    including the assigned dataset UUID and version number.
+    total_valid_rows: int = 0
+    total_invalid_rows: int = 0
+    total_duplicate_rows: int = 0
+
+
+@dataclass(frozen=True)
+class ResponseChecks:
+    """Validation outcomes reported by the server."""
+
+    schema_is_valid: bool = False
+    config_is_valid: bool = False
+    date_formats_are_valid: bool = False
+    dataset_is_valid: bool = False
+    invalid_datetime_formats: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class PublishEnvelope:
+    """Transport-layer response shared by publish and dry-publish calls.
+
+    Mirrors the canonical envelope the Arrow Flight server emits on both
+    ``do_put`` and ``do_action``.
     """
 
-    status: bool
-    dataset_name: str | None = None
-    dataset_uuid: str | None = None
-    dataset_version: int | None = None
-    dataset_batch_number: int | None = None
-    valid_record_count: int | None = None
-    duplicate_record_count: int | None = None
-    invalid_record_count: int | None = None
+    success: bool = False
+    metadata: ResponseMetadata = field(default_factory=ResponseMetadata)
+    metrics: ResponseMetrics = field(default_factory=ResponseMetrics)
+    checks: ResponseChecks = field(default_factory=ResponseChecks)
+    errors: list[str] = field(default_factory=list)
     invalid_records: pd.DataFrame | None = None
+    """Populated from the Arrow IPC channel, not from the JSON payload."""
+
+    @classmethod
+    def from_json(cls, payload: dict, invalid_records: pd.DataFrame | None = None) -> PublishEnvelope:
+        """Build an envelope from the server's decoded JSON response.
+
+        Missing sections fall back to defaults so an older or partial server
+        response degrades to "nothing validated" rather than raising.
+        """
+        metadata = payload.get("metadata") or {}
+        metrics = payload.get("metrics") or {}
+        checks = payload.get("checks") or {}
+
+        return cls(
+            success=payload.get("success", False),
+            metadata=ResponseMetadata(
+                dataset_name=metadata.get("dataset_name"),
+                dataset_version=metadata.get("dataset_version"),
+                column_count=metadata.get("column_count"),
+                dataset_uuid=metadata.get("dataset_uuid"),
+                dataset_batch_number=metadata.get("dataset_batch_number"),
+            ),
+            metrics=ResponseMetrics(
+                total_valid_rows=metrics.get("total_valid_rows") or 0,
+                total_invalid_rows=metrics.get("total_invalid_rows") or 0,
+                total_duplicate_rows=metrics.get("total_duplicate_rows") or 0,
+            ),
+            checks=ResponseChecks(
+                schema_is_valid=checks.get("schema_is_valid", False),
+                config_is_valid=checks.get("config_is_valid", False),
+                date_formats_are_valid=checks.get("date_formats_are_valid", False),
+                dataset_is_valid=checks.get("dataset_is_valid", False),
+                invalid_datetime_formats=checks.get("invalid_datetime_formats") or {},
+            ),
+            errors=payload.get("errors") or [],
+            invalid_records=invalid_records,
+        )
+
+
+# Publish and dry-publish share one wire contract; the names are kept so call
+# sites still read as the operation they perform.
+DryPublishResponse = PublishEnvelope
+PublishResponse = PublishEnvelope

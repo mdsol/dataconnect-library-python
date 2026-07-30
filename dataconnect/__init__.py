@@ -17,6 +17,9 @@ from dataconnect.models import (
     PaginatedResponse,
     Pagination,
     PublishResult,
+    ResultChecks,
+    ResultMetadata,
+    ResultMetrics,
     Study,
     StudyEnvironment,
 )
@@ -32,6 +35,9 @@ __all__ = [
     "PaginatedResponse",
     "Pagination",
     "PublishResult",
+    "ResultMetadata",
+    "ResultMetrics",
+    "ResultChecks",
     # Exceptions — catch these in user application code
     "DataConnectError",
     "AuthenticationError",

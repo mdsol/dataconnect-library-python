@@ -35,6 +35,9 @@ from dataconnect.transport.models import (
     PublishResponse,
     ResourceInfo,
     ResourceQuery,
+    ResponseChecks,
+    ResponseMetadata,
+    ResponseMetrics,
 )
 
 # ---------------------------------------------------------------------------
@@ -43,23 +46,45 @@ from dataconnect.transport.models import (
 
 
 def _make_dry_publish_response(**overrides: object) -> DryPublishResponse:
-    """Return a fully-populated ``DryPublishResponse`` with sensible defaults."""
-    defaults: dict = dict(
-        status=True,
-        is_schema_valid=True,
-        is_config_valid=True,
-        dataset_valid=True,
-        errors=[],
-        invalid_datetime_formats={},
-        dataset_name="demo_dataset",
-        dataset_version=1,
-        no_of_columns=5,
-        valid_record_count=10,
-        duplicate_record_count=0,
-        invalid_record_count=0,
-        invalid_records=None,
+    """Return a fully-populated ``DryPublishResponse``; overrides use the flat legacy names."""
+    flat: dict = {
+        "status": True,
+        "is_schema_valid": True,
+        "is_config_valid": True,
+        "dataset_valid": True,
+        "errors": [],
+        "invalid_datetime_formats": {},
+        "dataset_name": "demo_dataset",
+        "dataset_version": 1,
+        "no_of_columns": 5,
+        "valid_record_count": 10,
+        "duplicate_record_count": 0,
+        "invalid_record_count": 0,
+        "invalid_records": None,
+        **overrides,
+    }
+    return DryPublishResponse(
+        success=flat["status"],
+        metadata=ResponseMetadata(
+            dataset_name=flat["dataset_name"],
+            dataset_version=flat["dataset_version"],
+            column_count=flat["no_of_columns"],
+        ),
+        metrics=ResponseMetrics(
+            total_valid_rows=flat["valid_record_count"],
+            total_invalid_rows=flat["invalid_record_count"],
+            total_duplicate_rows=flat["duplicate_record_count"],
+        ),
+        checks=ResponseChecks(
+            schema_is_valid=flat["is_schema_valid"],
+            config_is_valid=flat["is_config_valid"],
+            date_formats_are_valid=not flat["invalid_datetime_formats"],
+            dataset_is_valid=flat["dataset_valid"],
+            invalid_datetime_formats=flat["invalid_datetime_formats"],
+        ),
+        errors=flat["errors"],
+        invalid_records=flat["invalid_records"],
     )
-    return DryPublishResponse(**{**defaults, **overrides})
 
 
 def _make_json_buf(d: dict) -> pa.Buffer:
@@ -376,20 +401,26 @@ def _wire_do_put(
     return writer_mock, reader_mock
 
 
-# A minimal valid JSON response the server would return.
+# A minimal valid envelope the server would return.
 _VALID_JSON_RESP: dict = {
-    "status": True,
-    "is_schema_valid": True,
-    "is_config_valid": True,
-    "dataset_valid": True,
+    "success": True,
+    "metadata": {
+        "dataset_name": "ds",
+        "dataset_version": 1,
+        "column_count": 1,
+        "dataset_uuid": None,
+        "dataset_batch_number": None,
+    },
+    "metrics": {"total_valid_rows": 1, "total_invalid_rows": 0, "total_duplicate_rows": 0},
+    "checks": {
+        "schema_is_valid": True,
+        "config_is_valid": True,
+        "date_formats_are_valid": True,
+        "dataset_is_valid": True,
+        "invalid_datetime_formats": {},
+    },
     "errors": [],
-    "invalid_datetime_formats": {},
-    "dataset_name": "ds",
-    "dataset_version": 1,
-    "no_of_columns": 1,
-    "valid_record_count": 1,
-    "duplicate_record_count": 0,
-    "invalid_record_count": 0,
+    "invalid_records": [],
 }
 
 
@@ -485,10 +516,10 @@ class TestDryPublishDatasetTransport:
 
     def test_status_parsed_from_json(self) -> None:
         transport = _make_flight_transport()
-        _wire_do_put(transport, {**_VALID_JSON_RESP, "status": False})
+        _wire_do_put(transport, {**_VALID_JSON_RESP, "success": False})
 
         result = transport.dry_publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
-        assert result.status is False
+        assert result.success is False
 
     def test_errors_list_parsed_from_json(self) -> None:
         transport = _make_flight_transport()

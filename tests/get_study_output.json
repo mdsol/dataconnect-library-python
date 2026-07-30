@@ -1,0 +1,210 @@
+[
+  {
+    "uuid": "18722fcf-7864-409c-8b74-fc0166f405c6",
+    "name": "PWB Sample Study",
+    "environments": [
+      {
+        "uuid": "07245e54-c300-47ab-a0c1-339359a50a14",
+        "name": "Production"
+      },
+      {
+        "uuid": "49fafeff-fd41-4a1e-87a6-ebf3693d60cd",
+        "name": "Development"
+      },
+      {
+        "uuid": "2dc9eb2b-806f-4e42-8ae6-ebcd85162fc0",
+        "name": "Functional testing"
+      },
+      {
+        "uuid": "34bd415c-ee37-4bd8-b353-fac5af23bbbd",
+        "name": "Interactive verification"
+      },
+      {
+        "uuid": "fa25663f-643a-4f24-b7b2-f3c0947b61a1",
+        "name": "User acceptance testing"
+      },
+      {
+        "uuid": "8942d8d6-d8ec-4e97-ab1c-339687c0262c",
+        "name": "Training"
+      },
+      {
+        "uuid": "23a720ae-94eb-4584-b1c8-3d9d0fb30566",
+        "name": "Other"
+      },
+      {
+        "uuid": "317b8ddf-a4b9-453e-83fa-0de52408334e",
+        "name": "Other_Test"
+      },
+      {
+        "uuid": "3ca78cd5-34c5-4f09-9773-99635b8da056",
+        "name": "Other_Migration"
+      },
+      {
+        "uuid": "044dd687-0cdb-4cb8-b4ae-742973ee2946",
+        "name": "Newenv"
+      },
+      {
+        "uuid": "998d4805-ed6b-4a43-8b58-897657f89bce",
+        "name": "Newenv2"
+      },
+      {
+        "uuid": "f6cc588d-2e99-40e6-a6c7-e95d69c5e831",
+        "name": "Newenv3"
+      },
+      {
+        "uuid": "2bc11fe9-b323-4196-b7b6-f89aed9ee3a3",
+        "name": "DS_BugFix_2"
+      }
+    ]
+  },
+  {
+    "uuid": "32a7633a-879b-48a8-8502-9e084d743d87",
+    "name": "PWB Sample Study - II",
+    "environments": [
+      {
+        "uuid": "4be5cf99-05af-48c6-8549-bc420d1ee48e",
+        "name": "Production"
+      },
+      {
+        "uuid": "1d4f02c6-1cc5-41e3-9993-19e1befeec99",
+        "name": "Development"
+      },
+      {
+        "uuid": "21ef3869-bb5b-437a-9e70-7a7d423cdd56",
+        "name": "Functional testing"
+      },
+      {
+        "uuid": "dce6b76c-c13f-482d-8a91-16831a96caf2",
+        "name": "Interactive verification"
+      },
+      {
+        "uuid": "ca9d20a8-f4d9-4387-93aa-eae7508244fb",
+        "name": "User acceptance testing"
+      },
+      {
+        "uuid": "48641ce4-ea87-427d-a121-4b8cd28a56d1",
+        "name": "Training"
+      }
+    ]
+  },
+  {
+    "uuid": "b94df93e-f6a8-4e3d-bdf4-011f3e8e4cd6",
+    "name": "PWB Sample Study 1",
+    "environments": [
+      {
+        "uuid": "a9af502c-d835-4d2f-b6ae-f1ac8c632a26",
+        "name": "Production"
+      },
+      {
+        "uuid": "23272530-af83-43e7-9104-b37a66ffa3c5",
+        "name": "Development"
+      },
+      {
+        "uuid": "3dd67470-bd0d-4523-8c5d-e98c6b76d4ce",
+        "name": "Functional testing"
+      },
+      {
+        "uuid": "9ee2b74f-3014-458c-a395-a5b6ee6f1806",
+        "name": "Interactive verification"
+      },
+      {
+        "uuid": "dbc4eb48-a185-46ca-9f3a-21cd745c793c",
+        "name": "User acceptance testing"
+      },
+      {
+        "uuid": "6acadc4f-6b14-4509-bd58-4bf6a98357ca",
+        "name": "Training"
+      }
+    ]
+  },
+  {
+    "uuid": "ddb6160b-be60-450d-b6cb-cec7acb35956",
+    "name": "PWB Sample Study 2",
+    "environments": [
+      {
+        "uuid": "0f2e7c0b-7215-448f-8957-bd5558b0ab98",
+        "name": "Production"
+      },
+      {
+        "uuid": "78170b37-9d18-4135-b8f3-2e3ab72190b8",
+        "name": "Development"
+      },
+      {
+        "uuid": "96cebbca-d00a-4ec7-a7a4-0030fb8bc41d",
+        "name": "Functional testing"
+      },
+      {
+        "uuid": "fe838455-aa2e-4c5e-b529-8c40f6e36234",
+        "name": "Interactive verification"
+      },
+      {
+        "uuid": "cfd2d204-b9aa-4a1a-a74e-569f9a94657e",
+        "name": "User acceptance testing"
+      },
+      {
+        "uuid": "a32b4ae9-faa2-4768-8cfe-cce73ebba333",
+        "name": "Training"
+      }
+    ]
+  },
+  {
+    "uuid": "1def15cb-908c-474f-a150-71f964f8bdd2",
+    "name": "PWB-Sandbox-Study(443)",
+    "environments": [
+      {
+        "uuid": "5d251c92-e6ec-4716-b2d7-55ed3ed9e737",
+        "name": "Production"
+      },
+      {
+        "uuid": "ab776b2e-d777-4ece-9107-28fd77395f94",
+        "name": "Development"
+      },
+      {
+        "uuid": "320fd702-e6af-4802-af42-ae10c2f165df",
+        "name": "Functional testing"
+      },
+      {
+        "uuid": "b6d9262f-d5b5-43a1-b17d-17b81294f430",
+        "name": "Interactive verification"
+      },
+      {
+        "uuid": "f685523c-5cd8-4bd5-a3a8-86a78b3eaa6d",
+        "name": "User acceptance testing"
+      },
+      {
+        "uuid": "c7e2b918-c7e6-4363-91b3-497828164b21",
+        "name": "Training"
+      }
+    ]
+  },
+  {
+    "uuid": "7decdf12-545e-4a83-9e37-857dfc1d8047",
+    "name": "YA_PWB_Test",
+    "environments": [
+      {
+        "uuid": "4b2f6aa0-f4e7-4348-834d-ee4e2c36c45d",
+        "name": "Production"
+      },
+      {
+        "uuid": "93552b03-5f85-4d61-a481-043dea52a754",
+        "name": "Development"
+      },
+      {
+        "uuid": "68576549-514e-4b7a-bfc8-2a727947a93c",
+        "name": "Functional testing"
+      },
+      {
+        "uuid": "e451f085-8bfe-4ebc-a66d-b4706a17156c",
+        "name": "Interactive verification"
+      },
+      {
+        "uuid": "dccc2ed3-19f0-4e55-a492-c9c9ba63b82a",
+        "name": "User acceptance testing"
+      },
+      {
+        "uuid": "e2282019-e163-4213-bed5-d29663610a99",
+        "name": "Training"
+      }
+    ]
+  }
+]
