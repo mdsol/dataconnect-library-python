@@ -9,14 +9,33 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from typing import TypeVar
 from uuid import UUID
 
 import pandas as pd
 import pyarrow as pa
 
 from dataconnect.exceptions import NotFoundError
-from dataconnect.models import Dataset, DatasetVersion, DryPublishResult, PublishResult, Study, StudyEnvironment
-from dataconnect.transport.models import DataTable, DryPublishResponse, PublishResponse, ResourceInfo
+from dataconnect.models import (
+    Dataset,
+    DatasetVersion,
+    DryPublishResult,
+    PublishResult,
+    ResultChecks,
+    ResultMetadata,
+    ResultMetrics,
+    Study,
+    StudyEnvironment,
+)
+from dataconnect.transport.models import (
+    DataTable,
+    DryPublishResponse,
+    PublishEnvelope,
+    PublishResponse,
+    ResourceInfo,
+)
+
+_ResultT = TypeVar("_ResultT", DryPublishResult, PublishResult)
 
 
 def resource_to_study(resource: ResourceInfo) -> Study:
@@ -93,71 +112,63 @@ def resource_to_dataset(resource: ResourceInfo) -> Dataset:
     )
 
 
+def _envelope_to_domain(envelope: PublishEnvelope, result_cls: type[_ResultT]) -> _ResultT:  # noqa: UP047
+    """Copy a transport envelope onto its domain equivalent, section by section."""
+    return result_cls(
+        success=envelope.success,
+        metadata=ResultMetadata(
+            dataset_name=envelope.metadata.dataset_name,
+            dataset_version=envelope.metadata.dataset_version,
+            column_count=envelope.metadata.column_count,
+            dataset_uuid=envelope.metadata.dataset_uuid,
+            dataset_batch_number=envelope.metadata.dataset_batch_number,
+        ),
+        metrics=ResultMetrics(
+            total_valid_rows=envelope.metrics.total_valid_rows,
+            total_invalid_rows=envelope.metrics.total_invalid_rows,
+            total_duplicate_rows=envelope.metrics.total_duplicate_rows,
+        ),
+        checks=ResultChecks(
+            schema_is_valid=envelope.checks.schema_is_valid,
+            config_is_valid=envelope.checks.config_is_valid,
+            date_formats_are_valid=envelope.checks.date_formats_are_valid,
+            dataset_is_valid=envelope.checks.dataset_is_valid,
+            invalid_datetime_formats=envelope.checks.invalid_datetime_formats,
+        ),
+        errors=envelope.errors,
+        invalid_records=envelope.invalid_records,
+    )
+
+
 def dry_publish_response_to_domain(result: DryPublishResponse | None) -> DryPublishResult:
-    """Map a transport-layer ``DryPublishResponse`` to a ``DryPublishResult`` domain object.
-
-    ``DryPublishResponse`` carries flat, typed fields returned by the server after a
-    dry-publish call.  The mapping is direct for all shared fields with one
-    exception:
-
-    * ``DryPublishResponse.dataset_valid`` → ``DryPublishResult.is_dataset_valid``
-      (renamed for naming consistency with the other ``is_*_valid`` fields).
+    """Map a transport-layer dry-publish envelope to a ``DryPublishResult``.
 
     Args:
         result: The transport-layer result returned by
             :meth:`Transport.dry_publish_dataset`.  Pass ``None`` to obtain a
-            default :class:`DryPublishResult` with ``status=False`` and all
-            other fields at their zero values.
+            default :class:`DryPublishResult` with ``success=False``.
 
     Returns:
         A :class:`DryPublishResult` suitable for returning to the caller.
     """
     if result is None:
-        return DryPublishResult(status=False)
+        return DryPublishResult(success=False)
 
-    return DryPublishResult(
-        status=result.status,
-        is_schema_valid=result.is_schema_valid,
-        is_config_valid=result.is_config_valid,
-        is_dataset_valid=result.dataset_valid,
-        errors=result.errors,
-        invalid_datetime_formats=result.invalid_datetime_formats,
-        dataset_name=result.dataset_name,
-        dataset_version=result.dataset_version,
-        no_of_columns=result.no_of_columns,
-        valid_record_count=result.valid_record_count,
-        duplicate_record_count=result.duplicate_record_count,
-        invalid_record_count=result.invalid_record_count,
-        invalid_records=result.invalid_records,
-    )
+    return _envelope_to_domain(result, DryPublishResult)
 
 
 def publish_response_to_domain(result: PublishResponse | None) -> PublishResult:
-    """Map a transport-layer ``PublishResponse`` to a ``PublishResult`` domain object.
-
-    ``PublishResponse`` carries flat, typed fields returned by the server after a
-    publish call. The mapping is direct for all shared fields.
+    """Map a transport-layer publish envelope to a ``PublishResult``.
 
     Args:
         result: The transport-layer result returned by
             :meth:`Transport.publish_dataset`. Pass ``None`` to obtain a
-            default :class:`PublishResult` with ``status=False`` and all
-            other fields left at their default values.
+            default :class:`PublishResult` with ``success=False``.
 
     Returns:
         A :class:`PublishResult` suitable for returning to the caller.
     """
     if result is None:
-        return PublishResult(status=False)
+        return PublishResult(success=False)
 
-    return PublishResult(
-        status=result.status,
-        dataset_name=result.dataset_name,
-        dataset_uuid=result.dataset_uuid,
-        dataset_version=result.dataset_version,
-        dataset_batch_number=result.dataset_batch_number,
-        valid_record_count=result.valid_record_count,
-        duplicate_record_count=result.duplicate_record_count,
-        invalid_record_count=result.invalid_record_count,
-        invalid_records=result.invalid_records,
-    )
+    return _envelope_to_domain(result, PublishResult)

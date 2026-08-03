@@ -65,38 +65,112 @@ class PaginatedResponse(Generic[T]):  # noqa: UP046
     items: list[T]
 
 
+@dataclass(frozen=True)
+class ResultMetadata:
+    """Identity of the dataset a publish or dry-publish call acted on."""
+
+    dataset_name: str | None = None
+    dataset_version: int | None = None
+    column_count: int | None = None
+    dataset_uuid: str | None = None
+    dataset_batch_number: int | None = None
+
+
+@dataclass(frozen=True)
+class ResultMetrics:
+    """Row counts reported by the server."""
+
+    total_valid_rows: int = 0
+    total_invalid_rows: int = 0
+    total_duplicate_rows: int = 0
+
+
+@dataclass(frozen=True)
+class ResultChecks:
+    """Validation outcomes reported by the server."""
+
+    schema_is_valid: bool = False
+    config_is_valid: bool = False
+    date_formats_are_valid: bool = False
+    dataset_is_valid: bool = False
+    invalid_datetime_formats: dict[str, str] = field(default_factory=dict)
+
+
 @dataclass
-class DryPublishResult:
+class _PublishEnvelopeResult:
+    """Canonical result shape shared by publish and dry publish."""
+
+    success: bool
+    metadata: ResultMetadata = field(default_factory=ResultMetadata)
+    metrics: ResultMetrics = field(default_factory=ResultMetrics)
+    checks: ResultChecks = field(default_factory=ResultChecks)
+    errors: list[str] = field(default_factory=list)
+    invalid_records: pd.DataFrame | None = None
+
+    # Flat accessors below are deprecated views onto the envelope, kept so
+    # existing notebooks keep working. Prefer metadata/metrics/checks.
+
+    @property
+    def status(self) -> bool:
+        return self.success
+
+    @property
+    def dataset_name(self) -> str | None:
+        return self.metadata.dataset_name
+
+    @property
+    def dataset_version(self) -> int | None:
+        return self.metadata.dataset_version
+
+    @property
+    def dataset_uuid(self) -> str | None:
+        return self.metadata.dataset_uuid
+
+    @property
+    def dataset_batch_number(self) -> int | None:
+        return self.metadata.dataset_batch_number
+
+    @property
+    def no_of_columns(self) -> int | None:
+        return self.metadata.column_count
+
+    @property
+    def valid_record_count(self) -> int:
+        return self.metrics.total_valid_rows
+
+    @property
+    def invalid_record_count(self) -> int:
+        return self.metrics.total_invalid_rows
+
+    @property
+    def duplicate_record_count(self) -> int:
+        return self.metrics.total_duplicate_rows
+
+    @property
+    def is_schema_valid(self) -> bool:
+        return self.checks.schema_is_valid
+
+    @property
+    def is_config_valid(self) -> bool:
+        return self.checks.config_is_valid
+
+    @property
+    def is_dataset_valid(self) -> bool:
+        return self.checks.dataset_is_valid
+
+    @property
+    def invalid_datetime_formats(self) -> dict[str, str]:
+        return self.checks.invalid_datetime_formats
+
+
+@dataclass
+class DryPublishResult(_PublishEnvelopeResult):
     """Result of a dry publish operation, including validation status and details."""
 
-    status: bool
-    is_schema_valid: bool | None = None
-    is_config_valid: bool | None = None
-    is_dataset_valid: bool | None = None
-    errors: list[str] = field(default_factory=list)
-    invalid_datetime_formats: dict[str, str] = field(default_factory=dict)
-    dataset_name: str | None = None
-    dataset_version: int | None = None
-    no_of_columns: int | None = None
-    valid_record_count: int | None = None
-    duplicate_record_count: int | None = None
-    invalid_record_count: int | None = None
-    invalid_records: pd.DataFrame | None = None
-
 
 @dataclass
-class PublishResult:
+class PublishResult(_PublishEnvelopeResult):
     """Result of a publish operation, including status and details."""
-
-    status: bool
-    dataset_name: str | None = None
-    dataset_uuid: str | None = None
-    dataset_version: int | None = None
-    dataset_batch_number: int | None = None
-    valid_record_count: int | None = None
-    duplicate_record_count: int | None = None
-    invalid_record_count: int | None = None
-    invalid_records: pd.DataFrame | None = None
 
 
 @dataclass(frozen=True)
