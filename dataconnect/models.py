@@ -73,7 +73,7 @@ class ResultMetadata:
     dataset_version: int | None = None
     column_count: int | None = None
     dataset_uuid: str | None = None
-    dataset_batch_number: int | None = None
+    dataset_batch_number: int | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)

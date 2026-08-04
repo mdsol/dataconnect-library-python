@@ -14,6 +14,7 @@ Covers:
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -269,3 +270,34 @@ class TestDefensiveParsing:
     def test_none_transport_response_maps_to_failure(self) -> None:
         assert dry_publish_response_to_domain(None).success is False
         assert publish_response_to_domain(None).success is False
+
+
+class TestBatchNumberIsHiddenFromOutput:
+    @pytest.mark.parametrize(
+        ("envelope", "over_wire"),
+        [
+            (FAILED_DRY_PUBLISH_ENVELOPE, _dry_publish_over_wire),
+            (PASSED_DRY_PUBLISH_ENVELOPE, _dry_publish_over_wire),
+            (PUBLISH_ENVELOPE, _publish_over_wire),
+        ],
+        ids=["dry_publish_failure", "dry_publish_success", "publish"],
+    )
+    def test_batch_number_absent_from_printed_output(
+        self, envelope: dict, over_wire: Callable[[dict], DryPublishResult | PublishResult]
+    ) -> None:
+        result = over_wire(envelope)
+
+        assert "dataset_batch_number" not in repr(result)
+        assert "dataset_batch_number" not in repr(result.metadata)
+
+    def test_publish_batch_number_is_still_readable(self) -> None:
+        result = _publish_over_wire(PUBLISH_ENVELOPE)
+
+        assert result.metadata.dataset_batch_number == 1
+        assert result.dataset_batch_number == 1
+
+    def test_other_metadata_still_printed(self) -> None:
+        printed = repr(_publish_over_wire(PUBLISH_ENVELOPE).metadata)
+
+        for field_name in ("dataset_name", "dataset_version", "column_count", "dataset_uuid"):
+            assert field_name in printed
