@@ -116,10 +116,6 @@ class TestPublishResponseToDomain:
         result = publish_response_to_domain(_make_publish_response(dataset_version=3))
         assert result.dataset_version == 3
 
-    def test_dataset_batch_number_mapped(self) -> None:
-        result = publish_response_to_domain(_make_publish_response(dataset_batch_number=2))
-        assert result.dataset_batch_number == 2
-
     def test_valid_record_count_mapped(self) -> None:
         result = publish_response_to_domain(_make_publish_response(valid_record_count=50))
         assert result.valid_record_count == 50

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from dataclasses import asdict
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -142,7 +143,6 @@ class TestFlatAccessorsStillWork:
         assert result.dataset_name == "PP_0726_1"
         assert result.dataset_uuid == "6f5a4e1c-0000-4a2b-9d3e-2f1c8b7a6d55"
         assert result.dataset_version == 1
-        assert result.dataset_batch_number == 1
         assert result.valid_record_count == 36042
         assert result.invalid_record_count == 0
         assert result.duplicate_record_count == 0
@@ -202,7 +202,6 @@ class TestTransportParsesArrowEnvelope:
 
         assert result.success is True
         assert result.metadata.dataset_uuid == "6f5a4e1c-0000-4a2b-9d3e-2f1c8b7a6d55"
-        assert result.metadata.dataset_batch_number == 1
         assert result.checks.schema_is_valid is True
 
     def test_dry_publish_and_publish_read_the_same_sections(self) -> None:
@@ -272,7 +271,7 @@ class TestDefensiveParsing:
         assert publish_response_to_domain(None).success is False
 
 
-class TestBatchNumberIsHiddenFromOutput:
+class TestBatchNumberRemovedFromResult:
     @pytest.mark.parametrize(
         ("envelope", "over_wire"),
         [
@@ -282,22 +281,31 @@ class TestBatchNumberIsHiddenFromOutput:
         ],
         ids=["dry_publish_failure", "dry_publish_success", "publish"],
     )
-    def test_batch_number_absent_from_printed_output(
+    def test_batch_number_absent_from_serialised_result(
         self, envelope: dict, over_wire: Callable[[dict], DryPublishResult | PublishResult]
     ) -> None:
         result = over_wire(envelope)
 
-        assert "dataset_batch_number" not in repr(result)
-        assert "dataset_batch_number" not in repr(result.metadata)
+        # asdict is how QA evidences the result; repr=False does not affect it.
+        serialised = asdict(result)
 
-    def test_publish_batch_number_is_still_readable(self) -> None:
+        assert "dataset_batch_number" not in serialised["metadata"]
+        assert "dataset_batch_number" not in serialised
+        assert "dataset_batch_number" not in json.dumps(serialised, default=str)
+        assert "dataset_batch_number" not in repr(result)
+
+    def test_batch_number_attribute_is_gone(self) -> None:
         result = _publish_over_wire(PUBLISH_ENVELOPE)
 
-        assert result.metadata.dataset_batch_number == 1
-        assert result.dataset_batch_number == 1
+        assert not hasattr(result, "dataset_batch_number")
+        assert not hasattr(result.metadata, "dataset_batch_number")
 
-    def test_other_metadata_still_printed(self) -> None:
-        printed = repr(_publish_over_wire(PUBLISH_ENVELOPE).metadata)
+    def test_other_metadata_survives(self) -> None:
+        serialised = asdict(_publish_over_wire(PUBLISH_ENVELOPE))["metadata"]
 
-        for field_name in ("dataset_name", "dataset_version", "column_count", "dataset_uuid"):
-            assert field_name in printed
+        assert serialised == {
+            "dataset_name": "PP_0726_1",
+            "dataset_version": 1,
+            "column_count": 13,
+            "dataset_uuid": "6f5a4e1c-0000-4a2b-9d3e-2f1c8b7a6d55",
+        }
