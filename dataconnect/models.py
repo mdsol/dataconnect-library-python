@@ -73,7 +73,6 @@ class ResultMetadata:
     dataset_version: int | None = None
     column_count: int | None = None
     dataset_uuid: str | None = None
-    dataset_batch_number: int | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
@@ -125,10 +124,6 @@ class _PublishEnvelopeResult:
     @property
     def dataset_uuid(self) -> str | None:
         return self.metadata.dataset_uuid
-
-    @property
-    def dataset_batch_number(self) -> int | None:
-        return self.metadata.dataset_batch_number
 
     @property
     def no_of_columns(self) -> int | None:

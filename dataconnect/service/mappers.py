@@ -121,7 +121,6 @@ def _envelope_to_domain(envelope: PublishEnvelope, result_cls: type[_ResultT]) -
             dataset_version=envelope.metadata.dataset_version,
             column_count=envelope.metadata.column_count,
             dataset_uuid=envelope.metadata.dataset_uuid,
-            dataset_batch_number=envelope.metadata.dataset_batch_number,
         ),
         metrics=ResultMetrics(
             total_valid_rows=envelope.metrics.total_valid_rows,
