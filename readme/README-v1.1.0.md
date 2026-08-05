@@ -1,7 +1,7 @@
 # DataConnect Python Library v1.1.0
 
 The DataConnect Python library provides a Python client for connecting to Medidata DataConnect and retrieving relevant data programmatically.
-To use this library, you must have a valid iMedidokaata account and access to required building blocks in the Medidata Platform. For details, see the Medidata [Knowledge Hub](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html).
+To use this library, you must have a valid iMedidata account and access to required building blocks in the Medidata Platform. For details, see the Medidata [Knowledge Hub](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html).
 
 ## Table of Contents
 
