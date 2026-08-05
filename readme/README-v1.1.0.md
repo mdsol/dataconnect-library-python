@@ -213,11 +213,13 @@ dry_publish(project_token, dataset_name, key_columns, source_datasets, data, dat
 
 #### Output
 
-Returns the result of publishing validations as a list containing clean, server-side data-quality metrics:
-* **`valid_record_count`**: Number of clean records matching platform requirements (always ≥ 0).
-* **`duplicate_record_count`**: Gross duplicate records identified across the payload composite keys.
-* **`invalid_record_count`**: Number of records containing validation errors or missing required keys.
-* **`invalid_records`**: A data frame containing the rows that failed validation.
+Returns a result object with the following attributes:
+* **`success`**: `True` if all validation checks passed, `False` otherwise.
+* **`metadata`**: Dataset identity (`dataset_name`, `dataset_version`, `column_count`).
+* **`metrics`**: Row counts — `total_valid_rows`, `total_invalid_rows`, `total_duplicate_rows`.
+* **`checks`**: Validation outcomes — `schema_is_valid`, `config_is_valid`, `date_formats_are_valid`, `dataset_is_valid`, `invalid_datetime_formats`.
+* **`errors`**: List of validation error messages, if any.
+* **`invalid_records`**: A data frame containing the rows that failed validation, or `None`.
 
 #### Data Validations
 
@@ -259,11 +261,11 @@ publish(project_token, dataset_name, key_columns, source_datasets, data, datetim
 
 #### Output
 
-Returns the status of publish as a list containing the final backend execution results:
-* **`valid_record_count`**: Total structural records written successfully to the destination table.
-* **`duplicate_record_count`**: Gross row duplication counters.
-* **`invalid_record_count`**: Total failure rows excluded during the network stream.
-* **`invalid_records`**: A data frame containing the rows that failed validation.
+Returns a result object with the following attributes:
+* **`success`**: `True` if the dataset was published successfully.
+* **`metadata`**: Dataset identity (`dataset_name`, `dataset_version`, `column_count`, `dataset_uuid`).
+* **`metrics`**: Row counts — `total_valid_rows`, `total_invalid_rows`, `total_duplicate_rows`.
+* **`invalid_records`**: A data frame containing any rows that failed validation, or `None`.
 
 
 #### Data Validations
