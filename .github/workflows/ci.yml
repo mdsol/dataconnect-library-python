@@ -17,10 +17,10 @@ jobs:
     steps:
     - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: "3.13"
 
     - name: Cache pre-commit hooks
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -33,19 +33,11 @@ jobs:
         chmod +x scripts/lint.sh
         scripts/lint.sh
 
-    - name: build docker image
-      working-directory: ${{ github.workspace }}
+    - name: Install dependencies
       run: |
-        git clone --depth=1 "https://x-access-token:${GITHUB_TOKEN}@github.com/mdsol/engineering-helper-scripts.git" ../ehs
-        eval $(ssh-agent)
-        PACKAGE_GROUPS=dev,test ../ehs/docker/build_container.sh .12factor/Dockerfile --build-arg PACKAGE_GROUPS
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
-        ARTIFACTORY_USER: ${{ vars.ARTIFACTORY_USER }}
-
-    - name: benchmarks
-      run: docker run dataconnect-library-python "scripts/benchmark.sh"
-
+        pip install poetry
+        poetry install --with dev,test
     - name: Run unit tests
-      run: docker run dataconnect-library-python "scripts/test.sh"
+      run: |
+        chmod +x scripts/test.sh
+        poetry run scripts/test.sh
