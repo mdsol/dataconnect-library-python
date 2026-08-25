@@ -36,11 +36,11 @@ jobs:
     - name: build docker image
       working-directory: ${{ github.workspace }}
       run: |
-        git clone --depth=1 "https://$TRAVIS_ROBOT_KEY@github.com/mdsol/engineering-helper-scripts.git" ../ehs
+        git clone --depth=1 "https://x-access-token:${GITHUB_TOKEN}@github.com/mdsol/engineering-helper-scripts.git" ../ehs
         eval $(ssh-agent)
         PACKAGE_GROUPS=dev,test ../ehs/docker/build_container.sh .12factor/Dockerfile --build-arg PACKAGE_GROUPS
       env:
-        TRAVIS_ROBOT_KEY: ${{ secrets.TRAVIS_ROBOT_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
         ARTIFACTORY_USER: ${{ vars.ARTIFACTORY_USER }}
 
