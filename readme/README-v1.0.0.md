@@ -246,6 +246,8 @@ Returns the status of publish as a list containing the final backend execution r
 * **`invalid_record_count`**: Total failure rows excluded during the network stream.
 * **`invalid_records`**: A data frame containing the rows that failed validation.
 
+Note: After a successful `publish()` call, it can take approximately 15-20 minutes for the dataset to appear in the iMedidata UI under Data Connect > Datasets. This delay is expected and does not indicate an error.
+
 
 #### Data Validations
 
