@@ -13,6 +13,7 @@ from dataconnect.exceptions import (
     AuthorizationError,
     NotFoundError,
     ServerError,
+    ValidationError,
 )
 from dataconnect.service.default import DefaultDataConnectService
 from dataconnect.transport.errors import (
@@ -105,6 +106,38 @@ def test_fetch_data_no_limit_sends_none_in_ticket() -> None:
 
     assert transport.last_ticket is not None
     assert transport.last_ticket.limit is None
+
+
+def test_fetch_data_raises_formatted_validation_error_for_non_numeric_first_n_rows() -> None:
+    dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
+    transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}))
+    service = DefaultDataConnectService(transport)
+
+    with pytest.raises(ValidationError) as exc_info:
+        service.fetch_data(dataset_uuid, first_n_rows="ten")  # type: ignore[arg-type]
+
+    error = str(exc_info.value)
+    assert "Error Code: [INT_001]" in error
+    assert "Message: invalid literal for int() with base 10: 'ten'" in error
+    assert "Field: first_n_rows" in error
+    assert "Expected: Ensure you provide a numeric value for this field." in error
+    assert transport.last_ticket is None
+
+
+def test_fetch_data_raises_formatted_validation_error_for_dict_first_n_rows() -> None:
+    dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
+    transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}))
+    service = DefaultDataConnectService(transport)
+
+    with pytest.raises(ValidationError) as exc_info:
+        service.fetch_data(dataset_uuid, first_n_rows={})  # type: ignore[arg-type]
+
+    error = str(exc_info.value)
+    assert "Error Code: [INT_001]" in error
+    assert "Message: invalid literal for int() with base 10: {}" in error
+    assert "Field: first_n_rows" in error
+    assert "Expected: Ensure you provide a numeric value for this field." in error
+    assert transport.last_ticket is None
 
 
 def test_fetch_data_returns_empty_dataframe_for_empty_table() -> None:
