@@ -148,7 +148,15 @@ Retrieves datasets for a specific study environment and returns paginated result
 | page_size | int | Optional. Number of results per page. Default: 50 |
 
 #### Output
-Returns a list containing `total_records` (total datasets available across all pages), `pagination` and `datasets` array.
+Returns a `PaginatedResponse` containing `total_records` (total datasets available across all pages), `pagination`, and an `items` list. Each call retrieves one requested page; it does not automatically fetch subsequent pages.
+
+Each dataset retains `dataset_uuid`, `study_uuid`, `study_env_uuid`, and `dataset_name`, and also exposes `dataset_short_name`, `type`, `source`, `activation_status`, `dataset_status`, `collection`, `last_updated`, `version`, `other_versions`, and `frame`.
+
+Missing or null metadata is represented as `None`; empty collections remain `[]` and empty strings remain `""`. `collection` is a list of strings, and `other_versions` is a list of dictionaries with `version` and `dataset_uuid` keys, or `None`. Version labels and timestamps remain strings without conversion.
+
+`dataset.frame` is a lazy reference: listing datasets does not fetch their rows. `dataset.frame.head(10)` returns the first ten rows as a pandas DataFrame (default: six), while `dataset.frame.collect()` fetches the complete dataset regardless of previous previews. Keep the originating client open while using its frames. A null dataset UUID has no usable frame and returns `frame=None`.
+
+`dataclasses.asdict(dataset)` retains the frame as an opaque reference without copying its connection. Exclude `frame` when JSON-serializing the metadata.
 
 ---
 
@@ -273,7 +281,7 @@ Returns a result object with the following attributes:
 | Validations             | Description                                                                                                                                                                                                                                                                                                    |
 |:---------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Invalid Input**    | Required argument is missing                                                                                                                                                                                                                                                                                   |
-| **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type. <br>2. More than one dataset cannot be published into a project<br>3. Authorized collaborators and project owners can publish datasets into a project. |  
+| **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type. <br>2. More than one dataset cannot be published into a project<br>3. Authorized collaborators and project owners can publish datasets into a project. |
 | **dataset_name**     | 1. Maximum length of 15 characters and must only contain alphanumeric characters and underscores<br> 2. This is the new name of the resulting dataset created by the user                                                                                                                                                                                                                  |
 | **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `None`) in any row<br> 3. Maps directly to the server-side metrics payload: `valid_record_count`, `duplicate_record_count`, and `invalid_record_count` without double-penalizing overlapping row states.                                                 |
 | **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |

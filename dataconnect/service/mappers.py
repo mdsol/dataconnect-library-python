@@ -109,6 +109,15 @@ def resource_to_dataset(resource: ResourceInfo) -> Dataset:
         study_uuid=data.get("study_uuid", ""),
         study_env_uuid=data.get("study_env_uuid", ""),
         dataset_name=data.get("dataset_name", ""),
+        dataset_short_name=data.get("dataset_short_name"),
+        type=data.get("type"),
+        source=data.get("source"),
+        activation_status=data.get("activation_status"),
+        dataset_status=data.get("dataset_status"),
+        collection=data.get("collection"),
+        last_updated=data.get("last_updated"),
+        version=data.get("version"),
+        other_versions=data.get("other_versions"),
     )
 
 
