@@ -110,7 +110,8 @@ class DefaultDataConnectService(DataConnectService):
             dataset_uuid: UUID of the dataset whose versions are requested.
 
         Returns:
-            A list of :class:`DatasetVersion` objects for the given dataset.
+            A list of :class:`DatasetVersion` objects with lazy frames for each version.
+            Fetching through a frame requires the originating client to remain open.
 
         Raises:
             ValidationError: If *dataset_uuid* is not a valid UUID (upstream).
@@ -120,10 +121,15 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             resources = self._transport.list_resources(request)
+            versions = []
+            for resource in resources:
+                version = resource_to_dataset_version(resource)
+                frame = DatasetFrame(str(version.dataset_uuid), self.fetch_data)
+                versions.append(replace(version, frame=frame))
 
             # Return Sorted dataset versions in descending order (newest first) based on the dataset_version field.
             return sorted(
-                (resource_to_dataset_version(r) for r in resources),
+                versions,
                 key=lambda dv: dv.dataset_version,
                 reverse=True,
             )

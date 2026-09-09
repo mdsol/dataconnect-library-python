@@ -36,6 +36,7 @@ class DatasetVersion:
     dataset_uuid: UUID
     dataset_name: str
     dataset_version: str
+    frame: DatasetFrame | None = field(default=None, repr=False, compare=False)
 
 
 class DatasetFrame:

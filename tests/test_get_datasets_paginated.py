@@ -13,7 +13,7 @@ import pyarrow as pa
 import pytest
 
 from dataconnect.client import DataConnectClient
-from dataconnect.models import Dataset, PaginatedResponse, Pagination
+from dataconnect.models import Dataset, DatasetVersion, PaginatedResponse, Pagination
 from dataconnect.service.default import DefaultDataConnectService
 from dataconnect.transport.errors import TransportError
 from dataconnect.transport.models import DataRef, DatasetTicket, DataTable, ResourceInfo, ResourceQuery
@@ -229,7 +229,7 @@ class _PagedFetchingTransport(_FakeTransport):
         self.requests.append(request)
         body = json.loads(request.body)
         total_records = sum(len(payloads) for payloads in self.pages.values())
-        return [_dataset_resource(payload, total_records) for payload in self.pages[body["page"]]]
+        return [_dataset_resource(payload, total_records) for payload in self.pages[body.get("page", 1)]]
 
     def get_ticket(self, ticket: DatasetTicket) -> DataTable:
         if self.closed:
@@ -416,7 +416,98 @@ def test_dataset_remains_hashable_with_collection_metadata() -> None:
     assert {dataset: "cached metadata"}[deepcopy(dataset)] == "cached metadata"
 
 
-def test_dataset_versions_response_is_unchanged_before_and_after_listing() -> None:
+def test_dataset_version_frames_fetch_only_on_demand_and_bind_each_version() -> None:
+    transport = _PagedFetchingTransport(
+        {
+            1: [
+                {**_IDENTIFIERS, "dataset_version": "1", "dataset_uuid": _OTHER_DATASET_UUID},
+                {**_IDENTIFIERS, "dataset_version": "2"},
+            ]
+        }
+    )
+    client = DataConnectClient(DefaultDataConnectService(transport))
+
+    newest, oldest = client.get_dataset_versions(UUID(_DATASET_UUID))
+
+    assert transport.tickets == []
+    assert newest.frame is not None
+    assert oldest.frame is not None
+    assert newest.frame is not oldest.frame
+    assert [newest.dataset_version, oldest.dataset_version] == ["2", "1"]
+    assert {field.name for field in fields(newest)} == {
+        "study_uuid",
+        "study_environment_uuid",
+        "dataset_uuid",
+        "dataset_name",
+        "dataset_version",
+        "frame",
+    }
+    preview = newest.frame.head(3)
+    assert isinstance(preview, pd.DataFrame)
+    assert preview["value"].tolist() == [0, 1, 2]
+    assert preview["dataset_uuid"].tolist() == [_DATASET_UUID] * 3
+    assert len(newest.frame.head()) == 6
+    assert len(newest.frame.collect()) == 8
+    assert oldest.frame.head(1)["dataset_uuid"].tolist() == [_OTHER_DATASET_UUID]
+    assert oldest.frame.collect()["dataset_uuid"].tolist() == [_OTHER_DATASET_UUID] * 8
+    assert transport.tickets == [
+        DatasetTicket(dataset_uuid=_DATASET_UUID, limit=3),
+        DatasetTicket(dataset_uuid=_DATASET_UUID, limit=6),
+        DatasetTicket(dataset_uuid=_DATASET_UUID, limit=None),
+        DatasetTicket(dataset_uuid=_OTHER_DATASET_UUID, limit=1),
+        DatasetTicket(dataset_uuid=_OTHER_DATASET_UUID, limit=None),
+    ]
+
+
+@pytest.mark.parametrize("label", ["1", "v1,v2", "41, 51, 88", ""])
+def test_dataset_version_frame_preserves_labels_and_metadata_semantics(label: str) -> None:
+    transport = _PagedFetchingTransport({1: [{**_IDENTIFIERS, "dataset_version": label}]})
+    client = DataConnectClient(DefaultDataConnectService(transport))
+    version = client.get_dataset_versions(UUID(_DATASET_UUID))[0]
+    legacy = DatasetVersion(UUID(_IDENTIFIERS["study_uuid"]), _STUDY_ENV_UUID, UUID(_DATASET_UUID), "LBHEM2", label)
+
+    assert legacy.frame is None
+    assert version.frame is not None
+    assert version.dataset_version == label
+    assert version == legacy
+    assert hash(version) == hash(legacy)
+    assert repr(version) == repr(legacy)
+    assert asdict(version)["frame"] is version.frame
+    assert deepcopy(version).frame is version.frame
+    assert copy(version.frame) is version.frame
+    assert transport.tickets == []
+
+
+def test_dataset_version_frame_preserves_fetch_errors_and_client_lifetime() -> None:
+    transport = _PagedFetchingTransport({1: [{**_IDENTIFIERS, "dataset_version": "1"}]})
+    service = DefaultDataConnectService(transport)
+    client = DataConnectClient(service)
+    version = client.get_dataset_versions(UUID(_DATASET_UUID))[0]
+    assert version.frame is not None
+    transport.fetch_error = TransportError(error_code="FETCH", message="fetch failed")
+
+    with pytest.raises(Exception) as direct:
+        service.fetch_data(version.dataset_uuid)
+    with pytest.raises(type(direct.value), match="fetch failed"):
+        version.frame.collect()
+    with pytest.raises(type(direct.value), match="fetch failed"):
+        version.frame.head()
+
+    transport.fetch_error = None
+    client.close()
+    with pytest.raises(Exception, match="transport closed"):
+        version.frame.collect()
+
+
+def test_dataset_versions_empty_response_does_not_fetch() -> None:
+    transport = _PagedFetchingTransport({1: []})
+    client = DataConnectClient(DefaultDataConnectService(transport))
+
+    assert client.get_dataset_versions(UUID(_DATASET_UUID)) == []
+    assert transport.tickets == []
+
+
+def test_dataset_versions_metadata_is_unchanged_before_and_after_listing() -> None:
     older = {**_IDENTIFIERS, "dataset_version": "1", "dataset_uuid": _OTHER_DATASET_UUID}
     newer = {**_IDENTIFIERS, "dataset_version": "2"}
     versions = [_dataset_resource(older), _dataset_resource(newer)]
@@ -439,11 +530,18 @@ def test_dataset_versions_response_is_unchanged_before_and_after_listing() -> No
         },
     ]
 
-    assert [asdict(item) for item in client.get_dataset_versions(UUID(_DATASET_UUID))] == expected
+    initial_versions = client.get_dataset_versions(UUID(_DATASET_UUID))
+    for item, metadata in zip(initial_versions, expected, strict=True):
+        assert item.frame is not None
+        assert asdict(item) == {**metadata, "frame": item.frame}
     transport._resources = [_dataset_resource({**_IDENTIFIERS, **_METADATA})]
     assert client.get_datasets(_STUDY_ENV_UUID).items[0].frame is not None
     transport._resources = versions
-    assert [asdict(item) for item in client.get_dataset_versions(UUID(_DATASET_UUID))] == expected
+    subsequent_versions = client.get_dataset_versions(UUID(_DATASET_UUID))
+    for item, metadata in zip(subsequent_versions, expected, strict=True):
+        assert item.frame is not None
+        assert asdict(item) == {**metadata, "frame": item.frame}
+    assert subsequent_versions == initial_versions
     assert transport.last_request is not None
     assert transport.last_request.action == "dataset_versions.list"
     assert json.loads(transport.last_request.body) == {"dataset_uuid": _DATASET_UUID}
