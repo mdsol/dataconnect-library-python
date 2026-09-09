@@ -275,6 +275,8 @@ Returns a result object with the following attributes:
 * **`metrics`**: Row counts — `total_valid_rows`, `total_invalid_rows`, `total_duplicate_rows`.
 * **`invalid_records`**: A data frame containing any rows that failed validation, or `None`.
 
+Note: After a successful `publish()` call, it can take approximately 15-20 minutes for the dataset to appear in the iMedidata UI under Data Connect > Datasets. This delay is expected and does not indicate an error.
+
 
 #### Data Validations
 

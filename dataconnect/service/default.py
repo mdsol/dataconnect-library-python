@@ -9,7 +9,7 @@ from uuid import UUID
 
 import pandas as pd
 
-from dataconnect.exceptions import ValidationError
+from dataconnect.exceptions import ErrorDetail, ValidationError
 from dataconnect.models import (
     Dataset,
     DatasetFrame,
@@ -49,6 +49,27 @@ _ACTION_LIST_DATASET_VERSIONS = "dataset_versions.list"
 # Accepted values for the ``format_type`` filter passed to
 # :meth:`DefaultDataConnectService.get_datetime_formats`.
 _VALID_DATETIME_FORMAT_TYPES: frozenset[str] = frozenset({"all", "date", "datetime"})
+
+
+def _coerce_int_field(field: str, field_value: int | None) -> int | None:
+    if field_value is None:
+        return None
+
+    try:
+        return int(field_value)
+    except (ValueError, TypeError) as ex:
+        message = str(ex) if isinstance(ex, ValueError) else f"invalid literal for int() with base 10: {field_value}"
+        raise ValidationError(
+            error_code="INT_001",
+            message=message,
+            timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            details=[
+                ErrorDetail(
+                    field=field,
+                    expected="Ensure you provide a numeric value for this field.",
+                )
+            ],
+        ) from ex
 
 
 class DefaultDataConnectService(DataConnectService):
@@ -114,7 +135,7 @@ class DefaultDataConnectService(DataConnectService):
 
         ticket = DatasetTicket(
             dataset_uuid=str(dataset_uuid),
-            limit=first_n_rows,
+            limit=_coerce_int_field("first_n_rows", first_n_rows),
         )
 
         try:

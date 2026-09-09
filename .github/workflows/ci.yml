@@ -12,15 +12,15 @@ permissions:
 jobs:
   test:
 
-    runs-on: [ self-hosted, ubuntu-latest ]
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: "3.13"
 
     - name: Cache pre-commit hooks
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -33,22 +33,11 @@ jobs:
         chmod +x scripts/lint.sh
         scripts/lint.sh
 
-    - name: build docker image
-      working-directory: ${{ github.workspace }}
+    - name: Install dependencies
       run: |
-        git clone --depth=1 "https://$TRAVIS_ROBOT_KEY@github.com/mdsol/engineering-helper-scripts.git" ../ehs
-        eval $(ssh-agent)
-        PACKAGE_GROUPS=dev,test ../ehs/docker/build_container.sh .12factor/Dockerfile --build-arg PACKAGE_GROUPS
-      env:
-        TRAVIS_ROBOT_KEY: ${{ secrets.TRAVIS_ROBOT_KEY }}
-        ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
-        ARTIFACTORY_USER: ${{ vars.ARTIFACTORY_USER }}
-
-    # - name: test (unit & integration)
-    #   run: docker run dataconnect-library-python "scripts/test.sh"
-
-    # - name: benchmarks
-    #   run: docker run dataconnect-library-python "scripts/benchmark.sh"
-
-    # - name: typecheck
-    #   run: docker run dataconnect-library-python "scripts/typecheck.sh"
+        pip install poetry
+        poetry install --with dev,test
+    - name: Run unit tests
+      run: |
+        chmod +x scripts/test.sh
+        poetry run scripts/test.sh
