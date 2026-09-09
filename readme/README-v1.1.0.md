@@ -148,7 +148,15 @@ Retrieves datasets for a specific study environment and returns paginated result
 | page_size | int | Optional. Number of results per page. Default: 50 |
 
 #### Output
-Returns a list containing `total_records` (total datasets available across all pages), `pagination` and `datasets` array.
+Returns a `PaginatedResponse` containing `total_records` (total datasets available across all pages), `pagination`, and an `items` list. Each call retrieves one requested page; it does not automatically fetch subsequent pages.
+
+Each dataset retains `dataset_uuid`, `study_uuid`, `study_env_uuid`, and `dataset_name`, and also exposes `dataset_short_name`, `type`, `source`, `activation_status`, `dataset_status`, `collection`, `last_updated`, `version`, `other_versions`, and `frame`.
+
+Missing or null metadata is represented as `None`; empty collections remain `[]` and empty strings remain `""`. `collection` is a list of strings, and `other_versions` is a list of dictionaries with `version` and `dataset_uuid` keys, or `None`. Version labels and timestamps remain strings without conversion.
+
+`dataset.frame` is a lazy reference: listing datasets does not fetch their rows. `dataset.frame.head(10)` returns the first ten rows as a pandas DataFrame (default: six), while `dataset.frame.collect()` fetches the complete dataset regardless of previous previews. Keep the originating client open while using its frames. A null dataset UUID has no usable frame and returns `frame=None`.
+
+`dataclasses.asdict(dataset)` retains the frame as an opaque reference without copying its connection. Exclude `frame` when JSON-serializing the metadata.
 
 ---
 

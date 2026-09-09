@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Generic, TypeVar
+from typing import Generic, Self, TypeVar
 from uuid import UUID
 
 import pandas as pd
@@ -37,6 +38,34 @@ class DatasetVersion:
     dataset_version: str
 
 
+class DatasetFrame:
+    """Lazy dataset reference; fetching requires the originating client to remain open."""
+
+    __slots__ = ("_dataset_uuid", "_fetch_data")
+
+    def __init__(self, dataset_uuid: str, fetch_data: Callable[[UUID, int | None], pd.DataFrame]) -> None:
+        self._dataset_uuid = dataset_uuid
+        self._fetch_data = fetch_data
+
+    def head(self, count: int = 6) -> pd.DataFrame:
+        """Fetch the first count rows, matching R's default of six rows."""
+        return self._fetch_data(UUID(self._dataset_uuid), count)
+
+    def collect(self) -> pd.DataFrame:
+        """Fetch the complete dataset without retaining a previous head limit."""
+        return self._fetch_data(UUID(self._dataset_uuid), None)
+
+    def __repr__(self) -> str:
+        return f"DatasetFrame(dataset_uuid={self._dataset_uuid!r})"
+
+    def __copy__(self) -> Self:
+        return self
+
+    def __deepcopy__(self, memo: dict[int, object]) -> Self:
+        """Keep this opaque reference intact when copying metadata with asdict()."""
+        return self
+
+
 @dataclass(frozen=True)
 class Dataset:
     """A dataset belonging to a study environment."""
@@ -45,6 +74,16 @@ class Dataset:
     study_uuid: str
     study_env_uuid: str
     dataset_name: str
+    dataset_short_name: str | None = None
+    type: str | None = None
+    source: str | None = None
+    activation_status: str | None = None
+    dataset_status: str | None = None
+    collection: list[str] | None = field(default=None, hash=False)
+    last_updated: str | None = None
+    version: str | None = None
+    other_versions: list[dict[str, str]] | None = field(default=None, hash=False)
+    frame: DatasetFrame | None = field(default=None, repr=False, compare=False)
 
 
 @dataclass(frozen=True)

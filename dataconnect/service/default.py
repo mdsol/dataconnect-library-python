@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -11,6 +12,7 @@ import pandas as pd
 from dataconnect.exceptions import ErrorDetail, ValidationError
 from dataconnect.models import (
     Dataset,
+    DatasetFrame,
     DatasetVersion,
     DatetimeFormat,
     DatetimeFormatsResult,
@@ -172,7 +174,13 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             resources = self._transport.list_resources(request)
-            items = [resource_to_dataset(r) for r in resources]
+            items = []
+            for resource in resources:
+                dataset = resource_to_dataset(resource)
+                frame = (
+                    DatasetFrame(dataset.dataset_uuid, self.fetch_data) if dataset.dataset_uuid is not None else None
+                )
+                items.append(replace(dataset, frame=frame))
             total_records = resources[0].total_records if resources else 0
             total_pages = (total_records + page_size - 1) // page_size if page_size > 0 else 0
             return PaginatedResponse(
