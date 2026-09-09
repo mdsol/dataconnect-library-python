@@ -70,7 +70,7 @@ class DatasetFrame:
 class Dataset:
     """A dataset belonging to a study environment."""
 
-    dataset_uuid: str
+    dataset_uuid: str | None
     study_uuid: str
     study_env_uuid: str
     dataset_name: str
