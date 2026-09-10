@@ -11,7 +11,6 @@ import base64
 import dataclasses
 import json
 import platform
-import socket
 import subprocess
 from datetime import UTC, datetime
 from importlib.metadata import version
@@ -132,15 +131,6 @@ class ArrowFlightTransport(Transport):
             sdk_version = "0.1.0"
         client_info_value = f"Python_SDK;{sdk_version};"
         self._call_headers.append((b"x-client-dataconnect", client_info_value.encode("utf-8")))
-
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("8.8.8.8", 80))
-            client_ip = s.getsockname()[0]
-            s.close()
-        except Exception:
-            client_ip = "127.0.0.1"
-        self._call_headers.append((b"x-client-public-ip", client_ip.encode("utf-8")))
 
         if token:
             self._call_headers.append((b"authorization", f"Bearer {token}".encode()))

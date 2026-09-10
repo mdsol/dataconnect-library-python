@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib.metadata
-import socket
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -37,15 +36,6 @@ def test_connect_injects_all_required_logging_headers(mock_flight_client: MagicM
     assert b"x-client-dataconnect" in headers_dict
     assert headers_dict[b"x-client-dataconnect"] == b"Python_SDK;v1.2.3-test;"
 
-    # AC-04: Client IP Address validation
-    assert b"x-client-public-ip" in headers_dict
-    try:
-        socket.inet_aton(headers_dict[b"x-client-public-ip"].decode("utf-8"))
-        ip_is_valid = True
-    except OSError:
-        ip_is_valid = False
-    assert ip_is_valid
-
     # Check that existing auth token logic is preserved
     assert b"authorization" in headers_dict
     assert headers_dict[b"authorization"] == f"Bearer {test_token}".encode()
@@ -69,32 +59,6 @@ def test_sdk_type_remains_python_across_different_sdk_versions(
 
     expected_client_info = f"Python_SDK;{simulated_version};".encode()
     assert headers_dict[b"x-client-dataconnect"] == expected_client_info
-
-
-# ---------------------------------------------------------------------------
-# Edge cases & Error handling
-# ---------------------------------------------------------------------------
-
-
-@patch("pyarrow.flight.FlightClient")
-def test_client_ip_falls_back_to_localhost_on_socket_error(mock_flight_client: MagicMock) -> None:
-    """AC-04: Check if the IP falls back to 127.0.0.1 when the machine is offline."""
-    with (
-        patch("socket.socket.connect", side_effect=OSError("No network")),
-        patch("dataconnect.transport.arrow_flight.transport.version", return_value="1.0.0"),
-    ):
-        client = DataConnectClient.connect(
-            host="localhost",
-            port=8888,
-            use_tls=False,
-            user_uuid="dummy-uuid",
-        )
-
-    transport = client._service._transport
-    headers_dict = dict(transport._call_headers)
-
-    assert b"x-client-public-ip" in headers_dict
-    assert headers_dict[b"x-client-public-ip"] == b"127.0.0.1"
 
 
 @patch("pyarrow.flight.FlightClient")
