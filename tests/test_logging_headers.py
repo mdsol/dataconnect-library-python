@@ -36,8 +36,6 @@ def test_connect_injects_all_required_logging_headers(mock_flight_client: MagicM
     assert b"x-client-dataconnect" in headers_dict
     assert headers_dict[b"x-client-dataconnect"] == b"Python_SDK;v1.2.3-test;"
 
-
-
     # Check that existing auth token logic is preserved
     assert b"authorization" in headers_dict
     assert headers_dict[b"authorization"] == f"Bearer {test_token}".encode()
