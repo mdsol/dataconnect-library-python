@@ -155,7 +155,6 @@ def publish_response_to_domain(result: PublishResponse | None) -> PublishResult:
         dataset_name=result.dataset_name,
         dataset_uuid=result.dataset_uuid,
         dataset_version=result.dataset_version,
-        dataset_batch_number=result.dataset_batch_number,
         valid_record_count=result.valid_record_count,
         duplicate_record_count=result.duplicate_record_count,
         invalid_record_count=result.invalid_record_count,

@@ -92,7 +92,6 @@ class PublishResult:
     dataset_name: str | None = None
     dataset_uuid: str | None = None
     dataset_version: int | None = None
-    dataset_batch_number: int | None = None
     valid_record_count: int | None = None
     duplicate_record_count: int | None = None
     invalid_record_count: int | None = None

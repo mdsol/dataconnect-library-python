@@ -48,7 +48,6 @@ def _make_publish_response(**overrides: object) -> PublishResponse:
         dataset_name="demo_dataset",
         dataset_uuid="0158ea12-4004-3817-899b-2de6becbc0f9",
         dataset_version=1,
-        dataset_batch_number=1,
         valid_record_count=10,
         duplicate_record_count=0,
         invalid_record_count=0,
@@ -97,10 +96,6 @@ class TestPublishResponseToDomain:
     def test_dataset_version_mapped(self) -> None:
         result = publish_response_to_domain(_make_publish_response(dataset_version=3))
         assert result.dataset_version == 3
-
-    def test_dataset_batch_number_mapped(self) -> None:
-        result = publish_response_to_domain(_make_publish_response(dataset_batch_number=2))
-        assert result.dataset_batch_number == 2
 
     def test_valid_record_count_mapped(self) -> None:
         result = publish_response_to_domain(_make_publish_response(valid_record_count=50))
@@ -311,7 +306,6 @@ _VALID_JSON_RESP: dict = {
     "dataset_name": "demo_dataset",
     "dataset_uuid": "0158ea12-4004-3817-899b-2de6becbc0f9",
     "dataset_version": 1,
-    "dataset_batch_number": 1,
     "valid_record_count": 1,
     "duplicate_record_count": 0,
     "invalid_record_count": 0,

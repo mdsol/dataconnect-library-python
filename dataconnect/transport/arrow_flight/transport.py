@@ -372,7 +372,6 @@ class ArrowFlightTransport(Transport):
                 dataset_name=json_result.get("dataset_name", None),
                 dataset_uuid=json_result.get("dataset_uuid", None),
                 dataset_version=json_result.get("dataset_version", None),
-                dataset_batch_number=json_result.get("dataset_batch_number", None),
                 valid_record_count=json_result.get("valid_record_count", None),
                 duplicate_record_count=json_result.get("duplicate_record_count", None),
                 invalid_record_count=json_result.get("invalid_record_count", None),
