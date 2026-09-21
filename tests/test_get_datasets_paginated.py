@@ -192,6 +192,7 @@ _METADATA = {
     "source": "JL_templ_upgrd2",
     "activation_status": "Activated",
     "dataset_status": "Warning",
+    "blinding_status": "NOT_UNBLINDING",
     "collection": ["clinical", "labs"],
     "last_updated": "2024-06-15 09:30:00",
     "version": "1",
@@ -207,6 +208,7 @@ _EXPECTED_FIELDS = {
     "source",
     "activation_status",
     "dataset_status",
+    "blinding_status",
     "collection",
     "last_updated",
     "version",
@@ -292,6 +294,16 @@ def test_metadata_preserves_missing_null_and_empty_values(scenario: str) -> None
     for name in _METADATA:
         assert getattr(dataset, name) == metadata.get(name)
     assert dataset.frame is not None
+
+
+def test_blinding_status_variants_from_backend_are_preserved() -> None:
+    unblinding = _FakeTransport([_dataset_resource({**_IDENTIFIERS, "blinding_status": "UNBLINDING"})])
+    dataset = DefaultDataConnectService(unblinding).get_datasets(_STUDY_ENV_UUID).items[0]
+    assert dataset.blinding_status == "UNBLINDING"
+
+    missing = _FakeTransport([_dataset_resource({**_IDENTIFIERS})])
+    dataset = DefaultDataConnectService(missing).get_datasets(_STUDY_ENV_UUID).items[0]
+    assert dataset.blinding_status is None
 
 
 @pytest.mark.parametrize("version", ["3", "v1,v2", "41, 51, 88", "", None])
@@ -417,9 +429,15 @@ def test_dataset_remains_hashable_with_collection_metadata() -> None:
 
 
 def test_dataset_versions_response_is_unchanged_before_and_after_listing() -> None:
-    older = {**_IDENTIFIERS, "dataset_version": "1", "dataset_uuid": _OTHER_DATASET_UUID}
-    newer = {**_IDENTIFIERS, "dataset_version": "2"}
-    versions = [_dataset_resource(older), _dataset_resource(newer)]
+    older = {
+        **_IDENTIFIERS,
+        "dataset_version": "1",
+        "dataset_uuid": _OTHER_DATASET_UUID,
+        "blinding_status": "UNBLINDING",
+    }
+    newer = {**_IDENTIFIERS, "dataset_version": "2", "blinding_status": "NOT_UNBLINDING"}
+    omitted = {**_IDENTIFIERS, "dataset_version": "3"}
+    versions = [_dataset_resource(older), _dataset_resource(newer), _dataset_resource(omitted)]
     transport = _FakeTransport(versions)
     client = DataConnectClient(DefaultDataConnectService(transport))
     expected = [
@@ -428,7 +446,16 @@ def test_dataset_versions_response_is_unchanged_before_and_after_listing() -> No
             "study_environment_uuid": _STUDY_ENV_UUID,
             "dataset_uuid": UUID(_DATASET_UUID),
             "dataset_name": "LBHEM2",
+            "dataset_version": "3",
+            "blinding_status": None,
+        },
+        {
+            "study_uuid": UUID(_IDENTIFIERS["study_uuid"]),
+            "study_environment_uuid": _STUDY_ENV_UUID,
+            "dataset_uuid": UUID(_DATASET_UUID),
+            "dataset_name": "LBHEM2",
             "dataset_version": "2",
+            "blinding_status": "NOT_UNBLINDING",
         },
         {
             "study_uuid": UUID(_IDENTIFIERS["study_uuid"]),
@@ -436,10 +463,13 @@ def test_dataset_versions_response_is_unchanged_before_and_after_listing() -> No
             "dataset_uuid": UUID(_OTHER_DATASET_UUID),
             "dataset_name": "LBHEM2",
             "dataset_version": "1",
+            "blinding_status": "UNBLINDING",
         },
     ]
 
-    assert [asdict(item) for item in client.get_dataset_versions(UUID(_DATASET_UUID))] == expected
+    listed = client.get_dataset_versions(UUID(_DATASET_UUID))
+    assert [asdict(item) for item in listed] == expected
+    assert listed[0].blinding_status is None
     transport._resources = [_dataset_resource({**_IDENTIFIERS, **_METADATA})]
     assert client.get_datasets(_STUDY_ENV_UUID).items[0].frame is not None
     transport._resources = versions

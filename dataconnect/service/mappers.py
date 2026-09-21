@@ -75,6 +75,7 @@ def resource_to_dataset_version(resource: ResourceInfo) -> DatasetVersion:
         dataset_uuid=UUID(data["dataset_uuid"]),
         dataset_name=data["dataset_name"],
         dataset_version=data["dataset_version"],
+        blinding_status=data.get("blinding_status"),
     )
 
 
@@ -114,6 +115,7 @@ def resource_to_dataset(resource: ResourceInfo) -> Dataset:
         source=data.get("source"),
         activation_status=data.get("activation_status"),
         dataset_status=data.get("dataset_status"),
+        blinding_status=data.get("blinding_status"),
         collection=data.get("collection"),
         last_updated=data.get("last_updated"),
         version=data.get("version"),
