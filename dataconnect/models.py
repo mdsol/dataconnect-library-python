@@ -36,6 +36,7 @@ class DatasetVersion:
     dataset_uuid: UUID
     dataset_name: str
     dataset_version: str
+    blinding_status: str | None = None
 
 
 class DatasetFrame:
@@ -79,6 +80,7 @@ class Dataset:
     source: str | None = None
     activation_status: str | None = None
     dataset_status: str | None = None
+    blinding_status: str | None = None
     collection: list[str] | None = field(default=None, hash=False)
     last_updated: str | None = None
     version: str | None = None
