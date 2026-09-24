@@ -163,9 +163,8 @@ class TestDatetimeFormatsResult:
 
 
 class TestServiceGetDatetimeFormats:
-    """``DefaultDataConnectService.get_datetime_formats`` must validate the
-    ``format_type`` filter, forward the request to the transport, and classify
-    each returned format.
+    """``DefaultDataConnectService.get_datetime_formats`` must forward the
+    ``format_type`` filter to the transport and classify each returned format.
     """
 
     def test_returns_datetime_formats_result_instance(self) -> None:
@@ -197,23 +196,13 @@ class TestServiceGetDatetimeFormats:
         assert transport.last_request is not None
         assert transport.last_request.format_type == "datetime"
 
-    def test_format_type_is_normalised_case_insensitively(self) -> None:
+    @pytest.mark.parametrize("format_type", ["DATE", "  Datetime  ", "", "invalid"])
+    def test_format_type_is_forwarded_unchanged(self, format_type: str) -> None:
         service, transport = _make_service()
-        service.get_datetime_formats(project_token="tok", format_type="DATE")
+        result = service.get_datetime_formats(project_token="tok", format_type=format_type)
         assert transport.last_request is not None
-        assert transport.last_request.format_type == "date"
-
-    def test_format_type_is_normalised_with_whitespace(self) -> None:
-        service, transport = _make_service()
-        service.get_datetime_formats(project_token="tok", format_type="  Datetime  ")
-        assert transport.last_request is not None
-        assert transport.last_request.format_type == "datetime"
-
-    def test_empty_string_format_type_is_treated_as_all(self) -> None:
-        service, transport = _make_service()
-        service.get_datetime_formats(project_token="tok", format_type="")
-        assert transport.last_request is not None
-        assert transport.last_request.format_type == "all"
+        assert transport.last_request.format_type == format_type
+        assert [item.format for item in result.all()] == _SAMPLE_FORMATS
 
     # --- response classification ---
 
@@ -260,27 +249,18 @@ class TestServiceGetDatetimeFormats:
         assert result.dates() == []
         assert result.datetimes() == []
 
-    # --- invalid input ---
-
-    @pytest.mark.parametrize("bad_type", ["NA", "invalid", "datetimes", "DATETIMEZ", "1"])
-    def test_invalid_format_type_raises_validation_error(self, bad_type: str) -> None:
-        service, transport = _make_service()
-        with pytest.raises(ValidationError):
-            service.get_datetime_formats(project_token="tok", format_type=bad_type)
-        # Transport must not be invoked when validation fails up-front.
-        assert transport.last_request is None
-
     # --- error translation ---
 
     def test_transport_validation_error_is_translated_to_service_error(self) -> None:
         err = TransportValidationError(
             error_code="VAL_008",
-            message="invalid project token",
+            message="invalid format type",
             timestamp="2024-01-01T00:00:00Z",
         )
-        service, _ = _make_service(raise_error=err)
-        with pytest.raises(ValidationError):
-            service.get_datetime_formats(project_token="bad", format_type="all")
+        service, transport = _make_service(raise_error=err)
+        with pytest.raises(ValidationError, match="invalid format type"):
+            service.get_datetime_formats(project_token="tok", format_type="invalid")
+        assert transport.last_request == DatetimeFormatsRequest(project_token="tok", format_type="invalid")
 
 
 # ---------------------------------------------------------------------------
