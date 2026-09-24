@@ -46,10 +46,6 @@ _ACTION_LIST_STUDIES = "studies.list"
 _ACTION_LIST_DATASETS = "datasets.list"
 _ACTION_LIST_DATASET_VERSIONS = "dataset_versions.list"
 
-# Accepted values for the ``format_type`` filter passed to
-# :meth:`DefaultDataConnectService.get_datetime_formats`.
-_VALID_DATETIME_FORMAT_TYPES: frozenset[str] = frozenset({"all", "date", "datetime"})
-
 
 def _coerce_int_field(field: str, field_value: int | None) -> int | None:
     if field_value is None:
@@ -325,13 +321,8 @@ class DefaultDataConnectService(DataConnectService):
     ) -> DatetimeFormatsResult:
         """Return the supported datetime formats filtered by ``format_type``.
 
-        The ``format_type`` argument is normalised (stripped + lower-cased) and
-        validated client-side against the accepted set ``{"all", "date",
-        "datetime"}``.  Invalid values raise :class:`ValidationError` *before*
-        any transport call is made.
-
-        The server filters the list according to ``format_type``; the service
-        then classifies each returned format as ``"date"`` or ``"datetime"``
+        The server validates and filters the list according to ``format_type``;
+        the service then classifies each returned format as ``"date"`` or ``"datetime"``
         (based on whether the format contains a time component ``"HH:mm"``) and
         wraps everything in a :class:`DatetimeFormatsResult` that exposes the
         :meth:`~DatetimeFormatsResult.all`,
@@ -349,22 +340,11 @@ class DefaultDataConnectService(DataConnectService):
             A :class:`DatetimeFormatsResult` containing the classified formats.
 
         Raises:
-            ValidationError: When ``format_type`` is not one of the accepted
-                values.
             DataConnectError: Any :class:`TransportError` from the transport
                 layer is translated by :func:`translate_error` into the public
                 API's :class:`DataConnectError` hierarchy.
         """
-        normalized = (format_type or "all").strip().lower()
-
-        if normalized not in _VALID_DATETIME_FORMAT_TYPES:
-            raise ValidationError(
-                error_code="VAL_001",
-                message=(f"Invalid format_type: {format_type!r}. Accepted values: all, date, datetime."),
-                timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            )
-
-        request = DatetimeFormatsRequest(project_token=project_token, format_type=normalized)
+        request = DatetimeFormatsRequest(project_token=project_token, format_type=format_type)
 
         try:
             raw_formats = self._transport.get_datetime_formats(request)

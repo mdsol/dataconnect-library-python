@@ -365,7 +365,7 @@ class ArrowFlightTransport(Transport):
 
         Args:
             request: A :class:`DatetimeFormatsRequest` carrying the project
-                token and the (already-validated) ``format_type`` filter.
+                token and the ``format_type`` filter for server validation.
 
         Returns:
             A list of supported format strings.  Returns an empty list if the
