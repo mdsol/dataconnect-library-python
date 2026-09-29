@@ -27,6 +27,15 @@ class Study:
 class StudiesResult:
     total_records: int
     studies: list[Study]
+    trace_id: str | None = None
+
+
+@dataclass(frozen=True)
+class FetchDataResult:
+    """A fetched DataFrame paired with the server's trace id for that call."""
+
+    data: pd.DataFrame
+    trace_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -39,20 +48,28 @@ class DatasetVersion:
     blinding_status: str | None = None
 
 
+@dataclass(frozen=True)
+class DatasetVersionsResult:
+    """Dataset versions paired with the server's trace id for that call."""
+
+    items: list[DatasetVersion]
+    trace_id: str | None = None
+
+
 class DatasetFrame:
     """Lazy dataset reference; fetching requires the originating client to remain open."""
 
     __slots__ = ("_dataset_uuid", "_fetch_data")
 
-    def __init__(self, dataset_uuid: str, fetch_data: Callable[[UUID, int | None], pd.DataFrame]) -> None:
+    def __init__(self, dataset_uuid: str, fetch_data: Callable[[UUID, int | None], FetchDataResult]) -> None:
         self._dataset_uuid = dataset_uuid
         self._fetch_data = fetch_data
 
-    def head(self, count: int = 6) -> pd.DataFrame:
+    def head(self, count: int = 6) -> FetchDataResult:
         """Fetch the first count rows, matching R's default of six rows."""
         return self._fetch_data(UUID(self._dataset_uuid), count)
 
-    def collect(self) -> pd.DataFrame:
+    def collect(self) -> FetchDataResult:
         """Fetch the complete dataset without retaining a previous head limit."""
         return self._fetch_data(UUID(self._dataset_uuid), None)
 
@@ -104,6 +121,7 @@ class PaginatedResponse(Generic[T]):  # noqa: UP046
     total_records: int
     pagination: Pagination
     items: list[T]
+    trace_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -146,6 +164,7 @@ class _PublishEnvelopeResult:
     checks: ResultChecks = field(default_factory=ResultChecks)
     errors: list[str] = field(default_factory=list)
     invalid_records: pd.DataFrame | None = None
+    trace_id: str | None = None
 
     # Flat accessors below are deprecated views onto the envelope, kept so
     # existing notebooks keep working. Prefer metadata/metrics/checks.
@@ -237,6 +256,8 @@ class DatetimeFormatsResult:
 
     formats: list[DatetimeFormat] = field(default_factory=list)
     """The full list of supported formats, in the order returned by the server."""
+
+    trace_id: str | None = None
 
     def all(self) -> list[DatetimeFormat]:
         """Return every supported format with its type classification."""

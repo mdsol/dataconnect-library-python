@@ -14,9 +14,10 @@ import pandas as pd
 
 from dataconnect.models import (
     Dataset,
-    DatasetVersion,
+    DatasetVersionsResult,
     DatetimeFormatsResult,
     DryPublishResult,
+    FetchDataResult,
     PaginatedResponse,
     PublishResult,
     StudiesResult,
@@ -55,19 +56,19 @@ class DataConnectClient:
     # Public API
 
     def get_studies(self, search_study_name: str | None = None) -> StudiesResult:
-        """List the studies the client is authorized to access."""
+        """List the studies the client is authorized to access, paired with the server's trace id."""
         return self._service.get_studies(search_study_name=search_study_name)
 
-    def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]:
-        """List the dataset versions the client is authorized to access."""
+    def get_dataset_versions(self, dataset_uuid: UUID) -> DatasetVersionsResult:
+        """List the dataset versions the client is authorized to access, paired with the server's trace id."""
         return self._service.get_dataset_versions(dataset_uuid)
 
     def fetch_data(
         self,
         dataset_uuid: UUID,
         first_n_rows: int | None = None,
-    ) -> pd.DataFrame:
-        """Fetch data frames for a given dataset UUID."""
+    ) -> FetchDataResult:
+        """Fetch data for a given dataset UUID, paired with the server's trace id."""
         return self._service.fetch_data(dataset_uuid, first_n_rows)
 
     def get_datasets(
@@ -86,7 +87,8 @@ class DataConnectClient:
             page_size: Number of results per page.
 
         Returns:
-            A :class:`PaginatedResponse` of :class:`Dataset` items matching the criteria.
+            A :class:`PaginatedResponse` of :class:`Dataset` items matching the criteria,
+            with ``trace_id`` set to the server's trace id for this call.
         """
         return self._service.get_datasets(
             study_environment_uuid=study_environment_uuid,
@@ -121,8 +123,8 @@ class DataConnectClient:
 
         Returns:
             A :class:`DryPublishResult` containing the server's validation
-            outcome, including per-field validity flags, error messages, and
-            an optional ``invalid_records`` DataFrame.
+            outcome, including per-field validity flags, error messages, an
+            optional ``invalid_records`` DataFrame, and the server's ``trace_id``.
         """
         return self._service.dry_publish(
             project_token=project_token,
@@ -159,7 +161,7 @@ class DataConnectClient:
 
         Returns:
             A :class:`PublishResult` containing the server's publish outcome,
-            including dataset UUID, version, and record counts.
+            including dataset UUID, version, record counts, and the server's ``trace_id``.
         """
         return self._service.publish(
             project_token=project_token,
@@ -189,7 +191,7 @@ class DataConnectClient:
             A :class:`DatetimeFormatsResult` exposing the classified list via
             :meth:`~DatetimeFormatsResult.all` and the type-filtered views via
             :meth:`~DatetimeFormatsResult.dates` and
-            :meth:`~DatetimeFormatsResult.datetimes`.
+            :meth:`~DatetimeFormatsResult.datetimes`, plus the server's ``trace_id``.
         """
         return self._service.get_datetime_formats(
             project_token=project_token,

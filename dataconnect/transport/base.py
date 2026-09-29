@@ -13,10 +13,11 @@ from dataconnect.transport.models import (
     DatasetTicket,
     DataTable,
     DatetimeFormatsRequest,
+    DatetimeFormatsResponse,
     DryPublishResponse,
     PublishRequest,
     PublishResponse,
-    ResourceInfo,
+    ResourceListResult,
     ResourceQuery,
 )
 
@@ -25,11 +26,15 @@ class Transport(ABC):
     """Minimal abstract transport for DataConnect operations."""
 
     @abstractmethod
-    def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
+    def list_resources(self, request: ResourceQuery) -> ResourceListResult:
         """List available data resources matching the given query.
 
         The transport does not interpret the action name or body — that is the
         service layer's responsibility.
+
+        Returns:
+            A :class:`ResourceListResult` with the matched resources and the
+            server's trace id for this call, or ``None`` if not provided.
         """
 
     @abstractmethod
@@ -57,12 +62,16 @@ class Transport(ABC):
         """
 
     @abstractmethod
-    def get_datetime_formats(self, request: DatetimeFormatsRequest) -> list[str]:
+    def get_datetime_formats(self, request: DatetimeFormatsRequest) -> DatetimeFormatsResponse:
         """Return the supported datetime format strings for the project.
 
         The transport does not interpret ``format_type`` — that is the service
         layer's responsibility.  The server applies the filter and returns the
         already-filtered list of format strings.
+
+        Returns:
+            A :class:`DatetimeFormatsResponse` with the filtered formats and
+            the server's trace id for this call, or ``None`` if not provided.
         """
 
     @abstractmethod

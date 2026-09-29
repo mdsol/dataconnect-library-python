@@ -13,10 +13,11 @@ from dataconnect.exceptions import ErrorDetail, ValidationError
 from dataconnect.models import (
     Dataset,
     DatasetFrame,
-    DatasetVersion,
+    DatasetVersionsResult,
     DatetimeFormat,
     DatetimeFormatsResult,
     DryPublishResult,
+    FetchDataResult,
     PaginatedResponse,
     Pagination,
     PublishResult,
@@ -92,21 +93,23 @@ class DefaultDataConnectService(DataConnectService):
         request = request.append_body({"search_study_name": search_study_name})
 
         try:
-            resources = self._transport.list_resources(request)
+            result = self._transport.list_resources(request)
+            resources = result.resources
             total_records = resources[0].total_records if resources else 0
             studies = [resource_to_study(r) for r in resources]
-            return StudiesResult(total_records=total_records, studies=studies)
+            return StudiesResult(total_records=total_records, studies=studies, trace_id=result.trace_id)
         except Exception as ex:
             raise translate_error(ex) from ex
 
-    def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]:
+    def get_dataset_versions(self, dataset_uuid: UUID) -> DatasetVersionsResult:
         """List available versions for a dataset.
 
         Args:
             dataset_uuid: UUID of the dataset whose versions are requested.
 
         Returns:
-            A list of :class:`DatasetVersion` objects for the given dataset.
+            A :class:`DatasetVersionsResult` containing the dataset versions,
+            newest first, and the server's trace id for this call.
 
         Raises:
             ValidationError: If *dataset_uuid* is not a valid UUID (upstream).
@@ -115,18 +118,19 @@ class DefaultDataConnectService(DataConnectService):
         request = ResourceQuery(action=_ACTION_LIST_DATASET_VERSIONS).append_body({"dataset_uuid": str(dataset_uuid)})
 
         try:
-            resources = self._transport.list_resources(request)
+            result = self._transport.list_resources(request)
 
             # Return Sorted dataset versions in descending order (newest first) based on the dataset_version field.
-            return sorted(
-                (resource_to_dataset_version(r) for r in resources),
+            versions = sorted(
+                (resource_to_dataset_version(r) for r in result.resources),
                 key=lambda dv: dv.dataset_version,
                 reverse=True,
             )
+            return DatasetVersionsResult(items=versions, trace_id=result.trace_id)
         except Exception as ex:
             raise translate_error(ex) from ex
 
-    def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None) -> pd.DataFrame:
+    def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None) -> FetchDataResult:
         """Fetch data for a dataset"""
 
         ticket = DatasetTicket(
@@ -136,7 +140,7 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             table = self._transport.get_ticket(ticket)
-            return resource_to_fetched_data(table)
+            return FetchDataResult(data=resource_to_fetched_data(table), trace_id=table.trace_id)
         except TransportError as ex:
             raise translate_error(ex) from ex
 
@@ -169,7 +173,8 @@ class DefaultDataConnectService(DataConnectService):
         )
 
         try:
-            resources = self._transport.list_resources(request)
+            result = self._transport.list_resources(request)
+            resources = result.resources
             items = []
             for resource in resources:
                 dataset = resource_to_dataset(resource)
@@ -183,6 +188,7 @@ class DefaultDataConnectService(DataConnectService):
                 total_records=total_records,
                 pagination=Pagination(page=page, page_size=page_size, total_pages=total_pages),
                 items=items,
+                trace_id=result.trace_id,
             )
         except TransportError as ex:
             raise translate_error(ex) from ex
@@ -347,7 +353,7 @@ class DefaultDataConnectService(DataConnectService):
         request = DatetimeFormatsRequest(project_token=project_token, format_type=format_type)
 
         try:
-            raw_formats = self._transport.get_datetime_formats(request)
+            formats_response = self._transport.get_datetime_formats(request)
         except TransportError as ex:
             raise translate_error(ex) from ex
 
@@ -356,10 +362,10 @@ class DefaultDataConnectService(DataConnectService):
                 format=fmt,
                 type="datetime" if "HH:mm" in fmt else "date",
             )
-            for fmt in raw_formats
+            for fmt in formats_response.formats
         ]
 
-        return DatetimeFormatsResult(formats=formats)
+        return DatetimeFormatsResult(formats=formats, trace_id=formats_response.trace_id)
 
     def close(self) -> None:
         """Close the underlying transport connection."""

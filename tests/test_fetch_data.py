@@ -22,7 +22,7 @@ from dataconnect.transport.errors import (
     TransportNotFoundError,
     TransportServerError,
 )
-from dataconnect.transport.models import DatasetTicket, DataTable, ResourceInfo, ResourceQuery
+from dataconnect.transport.models import DatasetTicket, DataTable, ResourceListResult, ResourceQuery
 
 # ---------------------------------------------------------------------------
 # Fake transport
@@ -41,8 +41,8 @@ class _FakeTransport:
         self._get_ticket_error = get_ticket_error
         self.last_ticket: DatasetTicket | None = None
 
-    def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
-        return []
+    def list_resources(self, request: ResourceQuery) -> ResourceListResult:
+        return ResourceListResult(resources=[], trace_id=None)
 
     def get_ticket(self, ticket: DatasetTicket) -> DataTable:
         self.last_ticket = ticket
@@ -55,7 +55,7 @@ class _FakeTransport:
         return None
 
 
-def _make_ipc_table(data: dict) -> DataTable:
+def _make_ipc_table(data: dict, trace_id: str | None = None) -> DataTable:
     arrow_table = pa.table(data)
     sink = pa.BufferOutputStream()
     writer = pa.ipc.new_stream(sink, arrow_table.schema)
@@ -64,6 +64,7 @@ def _make_ipc_table(data: dict) -> DataTable:
     return DataTable(
         schema_bytes=arrow_table.schema.serialize().to_pybytes(),
         ipc_bytes=sink.getvalue().to_pybytes(),
+        trace_id=trace_id,
     )
 
 
@@ -80,9 +81,9 @@ def test_fetch_data_returns_dataframe_with_correct_values() -> None:
 
     result = service.fetch_data(dataset_uuid)
 
-    assert isinstance(result, pd.DataFrame)
-    assert result["subject_id"].tolist() == source["subject_id"]
-    assert result["age"].tolist() == source["age"]
+    assert isinstance(result.data, pd.DataFrame)
+    assert result.data["subject_id"].tolist() == source["subject_id"]
+    assert result.data["age"].tolist() == source["age"]
 
 
 def test_fetch_data_builds_correct_ticket() -> None:
@@ -95,6 +96,26 @@ def test_fetch_data_builds_correct_ticket() -> None:
     assert transport.last_ticket is not None
     assert transport.last_ticket.dataset_uuid == str(dataset_uuid)
     assert transport.last_ticket.limit == 10
+
+
+def test_fetch_data_returns_trace_id_from_transport() -> None:
+    dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
+    transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}, trace_id="abc123"))
+    service = DefaultDataConnectService(transport)
+
+    result = service.fetch_data(dataset_uuid)
+
+    assert result.trace_id == "abc123"
+
+
+def test_fetch_data_trace_id_defaults_to_none() -> None:
+    dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
+    transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}))
+    service = DefaultDataConnectService(transport)
+
+    result = service.fetch_data(dataset_uuid)
+
+    assert result.trace_id is None
 
 
 def test_fetch_data_no_limit_sends_none_in_ticket() -> None:
@@ -147,9 +168,9 @@ def test_fetch_data_returns_empty_dataframe_for_empty_table() -> None:
 
     result = service.fetch_data(dataset_uuid)
 
-    assert isinstance(result, pd.DataFrame)
-    assert len(result) == 0
-    assert "col" in result.columns
+    assert isinstance(result.data, pd.DataFrame)
+    assert len(result.data) == 0
+    assert "col" in result.data.columns
 
 
 def test_fetch_data_translates_authentication_error() -> None:

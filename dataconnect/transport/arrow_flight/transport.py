@@ -26,10 +26,12 @@ from dataconnect.transport.models import (
     DatasetTicket,
     DataTable,
     DatetimeFormatsRequest,
+    DatetimeFormatsResponse,
     DryPublishResponse,
     PublishRequest,
     PublishResponse,
     ResourceInfo,
+    ResourceListResult,
     ResourceQuery,
 )
 
@@ -49,7 +51,7 @@ def _to_resource_info(info: flight.FlightInfo) -> ResourceInfo:
     )
 
 
-def _to_bytes(table: pa.Table) -> DataTable:
+def _to_bytes(table: pa.Table, trace_id: str | None = None) -> DataTable:
     """Serialize a ``pa.Table`` to a technology-agnostic ``DataTable``.
 
     Each record batch is serialized individually as Arrow IPC bytes.
@@ -65,7 +67,7 @@ def _to_bytes(table: pa.Table) -> DataTable:
     writer.close()
     ipc_bytes = sink.getvalue().to_pybytes()
 
-    return DataTable(schema_bytes=schema_bytes, ipc_bytes=ipc_bytes)
+    return DataTable(schema_bytes=schema_bytes, ipc_bytes=ipc_bytes, trace_id=trace_id)
 
 
 def _normalize_arrow_type(dtype: pa.DataType) -> pa.DataType:
@@ -184,7 +186,7 @@ class ArrowFlightTransport(Transport):
 
     # Transport
 
-    def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
+    def list_resources(self, request: ResourceQuery) -> ResourceListResult:
         """Translate the action name to Arrow Flight criteria and return resource records."""
 
         flight_type = _ACTION_FLIGHT_TYPE.get(request.action)
@@ -200,8 +202,16 @@ class ArrowFlightTransport(Transport):
         criteria = json.dumps({**body, "flight_type": flight_type}, separators=(",", ":")).encode("utf-8")
 
         try:
-            raw_flights = self._client.list_flights(criteria, self._options())
-            return [_to_resource_info(f) for f in raw_flights]
+            raw_flights = list(self._client.list_flights(criteria, self._options()))
+
+            trace_id = None
+            if raw_flights and raw_flights[0].app_metadata:
+                try:
+                    trace_id = json.loads(raw_flights[0].app_metadata.decode("utf-8")).get("trace_id")
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    trace_id = None
+
+            return ResourceListResult(resources=[_to_resource_info(f) for f in raw_flights], trace_id=trace_id)
 
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex
@@ -224,7 +234,13 @@ class ArrowFlightTransport(Transport):
                 except flight.FlightError as ex:
                     raise parse_dataconnect_error(ex) from ex
 
-            return _to_bytes(pa.Table.from_batches(batches, schema=table.schema))
+            trace_id = None
+            if table.schema.metadata:
+                raw_trace_id = table.schema.metadata.get(b"trace_id")
+                if raw_trace_id is not None:
+                    trace_id = raw_trace_id.decode("utf-8")
+
+            return _to_bytes(pa.Table.from_batches(batches, schema=table.schema), trace_id=trace_id)
 
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex
@@ -355,7 +371,7 @@ class ArrowFlightTransport(Transport):
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex
 
-    def get_datetime_formats(self, request: DatetimeFormatsRequest) -> list[str]:
+    def get_datetime_formats(self, request: DatetimeFormatsRequest) -> DatetimeFormatsResponse:
         """Invoke the Arrow Flight ``get_datetime_formats`` action and return the format list.
 
         The server expects a JSON body of the form
@@ -382,9 +398,10 @@ class ArrowFlightTransport(Transport):
             results = list(self._client.do_action(action, self._options()))
 
             if not results:
-                return []
+                return DatetimeFormatsResponse(formats=[], trace_id=None)
 
-            return json.loads(results[0].body.to_pybytes().decode("utf-8"))
+            response = json.loads(results[0].body.to_pybytes().decode("utf-8"))
+            return DatetimeFormatsResponse(formats=response.get("formats", []), trace_id=response.get("trace_id"))
 
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex

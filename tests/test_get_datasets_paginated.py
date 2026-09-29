@@ -16,7 +16,14 @@ from dataconnect.client import DataConnectClient
 from dataconnect.models import Dataset, PaginatedResponse, Pagination
 from dataconnect.service.default import DefaultDataConnectService
 from dataconnect.transport.errors import TransportError
-from dataconnect.transport.models import DataRef, DatasetTicket, DataTable, ResourceInfo, ResourceQuery
+from dataconnect.transport.models import (
+    DataRef,
+    DatasetTicket,
+    DataTable,
+    ResourceInfo,
+    ResourceListResult,
+    ResourceQuery,
+)
 
 
 class _FakeTransport:
@@ -24,16 +31,18 @@ class _FakeTransport:
         self,
         resources: list[ResourceInfo] | None = None,
         error: Exception | None = None,
+        trace_id: str | None = None,
     ) -> None:
         self._resources = resources or []
         self._error = error
+        self._trace_id = trace_id
         self.last_request: ResourceQuery | None = None
 
-    def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
+    def list_resources(self, request: ResourceQuery) -> ResourceListResult:
         self.last_request = request
         if self._error is not None:
             raise self._error
-        return self._resources
+        return ResourceListResult(resources=self._resources, trace_id=self._trace_id)
 
     def do_get(self, request: ResourceQuery) -> None:
         pass
@@ -156,6 +165,22 @@ class TestGetDatasetsReturnsPaginatedResponse:
         with pytest.raises(Exception, match="cannot connect"):
             service.get_datasets(study_environment_uuid=_STUDY_ENV_UUID)
 
+    def test_returns_trace_id_from_transport(self) -> None:
+        transport = _FakeTransport(resources=[], trace_id="trace-datasets-1")
+        service = DefaultDataConnectService(transport)
+
+        result = service.get_datasets(study_environment_uuid=_STUDY_ENV_UUID)
+
+        assert result.trace_id == "trace-datasets-1"
+
+    def test_trace_id_defaults_to_none(self) -> None:
+        transport = _FakeTransport(resources=[])
+        service = DefaultDataConnectService(transport)
+
+        result = service.get_datasets(study_environment_uuid=_STUDY_ENV_UUID)
+
+        assert result.trace_id is None
+
     def test_multiple_items_returned(self) -> None:
         resources = [
             _dataset_resource(
@@ -227,11 +252,12 @@ class _PagedFetchingTransport(_FakeTransport):
         self.lock = Lock()
         self.fetch_error: TransportError | None = None
 
-    def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
+    def list_resources(self, request: ResourceQuery) -> ResourceListResult:
         self.requests.append(request)
         body = json.loads(request.body)
         total_records = sum(len(payloads) for payloads in self.pages.values())
-        return [_dataset_resource(payload, total_records) for payload in self.pages[body["page"]]]
+        resources = [_dataset_resource(payload, total_records) for payload in self.pages[body["page"]]]
+        return ResourceListResult(resources=resources, trace_id=None)
 
     def get_ticket(self, ticket: DatasetTicket) -> DataTable:
         if self.closed:
@@ -331,13 +357,13 @@ def test_frame_fetches_only_on_demand_and_binds_each_dataset() -> None:
     assert second.frame is not None
     assert first.frame is not second.frame
 
-    preview = first.frame.head(3)
+    preview = first.frame.head(3).data
     assert isinstance(preview, pd.DataFrame)
     assert preview["value"].tolist() == [0, 1, 2]
     assert preview["dataset_uuid"].tolist() == [_DATASET_UUID] * 3
-    assert len(first.frame.head()) == 6
-    assert len(first.frame.collect()) == 8
-    assert second.frame.head(1)["dataset_uuid"].tolist() == [_OTHER_DATASET_UUID]
+    assert len(first.frame.head().data) == 6
+    assert len(first.frame.collect().data) == 8
+    assert second.frame.head(1).data["dataset_uuid"].tolist() == [_OTHER_DATASET_UUID]
     assert transport.tickets == [
         DatasetTicket(dataset_uuid=_DATASET_UUID, limit=3),
         DatasetTicket(dataset_uuid=_DATASET_UUID, limit=6),
@@ -361,7 +387,7 @@ def test_frame_copy_and_inspection_do_not_copy_or_fetch_connection() -> None:
     for name, value in _METADATA.items():
         assert encoded[name] == value
     assert transport.tickets == []
-    assert len(encoded["frame"].head(1)) == 1
+    assert len(encoded["frame"].head(1).data) == 1
 
 
 def test_dataset_constructor_and_equality_remain_independent_of_frame() -> None:
@@ -468,12 +494,24 @@ def test_dataset_versions_response_is_unchanged_before_and_after_listing() -> No
     ]
 
     listed = client.get_dataset_versions(UUID(_DATASET_UUID))
-    assert [asdict(item) for item in listed] == expected
-    assert listed[0].blinding_status is None
+    assert [asdict(item) for item in listed.items] == expected
+    assert listed.items[0].blinding_status is None
     transport._resources = [_dataset_resource({**_IDENTIFIERS, **_METADATA})]
     assert client.get_datasets(_STUDY_ENV_UUID).items[0].frame is not None
     transport._resources = versions
-    assert [asdict(item) for item in client.get_dataset_versions(UUID(_DATASET_UUID))] == expected
+    assert [asdict(item) for item in client.get_dataset_versions(UUID(_DATASET_UUID)).items] == expected
     assert transport.last_request is not None
     assert transport.last_request.action == "dataset_versions.list"
     assert json.loads(transport.last_request.body) == {"dataset_uuid": _DATASET_UUID}
+
+
+def test_get_dataset_versions_returns_trace_id_from_transport() -> None:
+    transport = _FakeTransport(
+        resources=[_dataset_resource({**_IDENTIFIERS, "dataset_version": "1"})],
+        trace_id="trace-versions-1",
+    )
+    service = DefaultDataConnectService(transport)
+
+    result = service.get_dataset_versions(UUID(_DATASET_UUID))
+
+    assert result.trace_id == "trace-versions-1"
