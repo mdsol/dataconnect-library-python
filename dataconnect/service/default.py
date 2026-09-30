@@ -13,11 +13,10 @@ from dataconnect.exceptions import ErrorDetail, ValidationError
 from dataconnect.models import (
     Dataset,
     DatasetFrame,
-    DatasetVersionsResult,
+    DatasetVersion,
     DatetimeFormat,
     DatetimeFormatsResult,
     DryPublishResult,
-    FetchDataResult,
     PaginatedResponse,
     Pagination,
     PublishResult,
@@ -75,6 +74,10 @@ class DefaultDataConnectService(DataConnectService):
     def __init__(self, transport: Transport) -> None:
         self._transport = transport
 
+    @property
+    def trace_id(self) -> str | None:
+        return getattr(self._transport, "trace_id", None)
+
     # DataConnectService
 
     def get_studies(self, search_study_name: str | None = None) -> StudiesResult:
@@ -94,22 +97,21 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             result = self._transport.list_resources(request)
-            resources = result.resources
+            resources = result
             total_records = resources[0].total_records if resources else 0
             studies = [resource_to_study(r) for r in resources]
-            return StudiesResult(total_records=total_records, studies=studies, trace_id=result.trace_id)
+            return StudiesResult(total_records=total_records, studies=studies)
         except Exception as ex:
             raise translate_error(ex) from ex
 
-    def get_dataset_versions(self, dataset_uuid: UUID) -> DatasetVersionsResult:
+    def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]:
         """List available versions for a dataset.
 
         Args:
             dataset_uuid: UUID of the dataset whose versions are requested.
 
         Returns:
-            A :class:`DatasetVersionsResult` containing the dataset versions,
-            newest first, and the server's trace id for this call.
+            The dataset versions, newest first.
 
         Raises:
             ValidationError: If *dataset_uuid* is not a valid UUID (upstream).
@@ -122,15 +124,15 @@ class DefaultDataConnectService(DataConnectService):
 
             # Return Sorted dataset versions in descending order (newest first) based on the dataset_version field.
             versions = sorted(
-                (resource_to_dataset_version(r) for r in result.resources),
+                (resource_to_dataset_version(r) for r in result),
                 key=lambda dv: dv.dataset_version,
                 reverse=True,
             )
-            return DatasetVersionsResult(items=versions, trace_id=result.trace_id)
+            return versions
         except Exception as ex:
             raise translate_error(ex) from ex
 
-    def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None) -> FetchDataResult:
+    def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None) -> pd.DataFrame:
         """Fetch data for a dataset"""
 
         ticket = DatasetTicket(
@@ -140,7 +142,7 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             table = self._transport.get_ticket(ticket)
-            return FetchDataResult(data=resource_to_fetched_data(table), trace_id=table.trace_id)
+            return resource_to_fetched_data(table)
         except TransportError as ex:
             raise translate_error(ex) from ex
 
@@ -174,7 +176,7 @@ class DefaultDataConnectService(DataConnectService):
 
         try:
             result = self._transport.list_resources(request)
-            resources = result.resources
+            resources = result
             items = []
             for resource in resources:
                 dataset = resource_to_dataset(resource)
@@ -188,7 +190,6 @@ class DefaultDataConnectService(DataConnectService):
                 total_records=total_records,
                 pagination=Pagination(page=page, page_size=page_size, total_pages=total_pages),
                 items=items,
-                trace_id=result.trace_id,
             )
         except TransportError as ex:
             raise translate_error(ex) from ex
@@ -362,10 +363,10 @@ class DefaultDataConnectService(DataConnectService):
                 format=fmt,
                 type="datetime" if "HH:mm" in fmt else "date",
             )
-            for fmt in formats_response.formats
+            for fmt in formats_response
         ]
 
-        return DatetimeFormatsResult(formats=formats, trace_id=formats_response.trace_id)
+        return DatetimeFormatsResult(formats=formats)
 
     def close(self) -> None:
         """Close the underlying transport connection."""

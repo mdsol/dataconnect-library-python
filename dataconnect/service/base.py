@@ -9,10 +9,9 @@ import pandas as pd
 
 from dataconnect.models import (
     Dataset,
-    DatasetVersionsResult,
+    DatasetVersion,
     DatetimeFormatsResult,
     DryPublishResult,
-    FetchDataResult,
     PaginatedResponse,
     PublishResult,
     StudiesResult,
@@ -35,14 +34,14 @@ class DataConnectService(ABC):
     ) -> PaginatedResponse[Dataset]: ...
 
     @abstractmethod
-    def get_dataset_versions(self, dataset_uuid: UUID) -> DatasetVersionsResult: ...
+    def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]: ...
 
     @abstractmethod
     def fetch_data(
         self,
         dataset_uuid: UUID,
         first_n_rows: int | None = None,
-    ) -> FetchDataResult: ...
+    ) -> pd.DataFrame: ...
 
     @abstractmethod
     def dry_publish(

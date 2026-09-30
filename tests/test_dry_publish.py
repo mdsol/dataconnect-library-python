@@ -18,7 +18,7 @@ import pyarrow as pa
 import pytest
 
 from dataconnect.exceptions import ValidationError
-from dataconnect.models import DatetimeFormatsResult, DryPublishResult
+from dataconnect.models import DryPublishResult
 from dataconnect.service.default import DefaultDataConnectService
 from dataconnect.service.mappers import dry_publish_response_to_domain
 from dataconnect.transport.arrow_flight.transport import (
@@ -30,11 +30,11 @@ from dataconnect.transport.errors import TransportValidationError
 from dataconnect.transport.models import (
     DatasetTicket,
     DataTable,
-    DatetimeFormatsResponse,
+    DatetimeFormatsRequest,
     DryPublishResponse,
     PublishRequest,
     PublishResponse,
-    ResourceListResult,
+    ResourceInfo,
     ResourceQuery,
     ResponseChecks,
     ResponseMetadata,
@@ -85,7 +85,6 @@ def _make_dry_publish_response(**overrides: object) -> DryPublishResponse:
         ),
         errors=flat["errors"],
         invalid_records=flat["invalid_records"],
-        trace_id=overrides.get("trace_id"),  # type: ignore[arg-type]
     )
 
 
@@ -227,13 +226,9 @@ class TestDryPublishResponseToDomain:
         result = dry_publish_response_to_domain(_make_dry_publish_response())
         assert isinstance(result, DryPublishResult)
 
-    def test_trace_id_mapped(self) -> None:
-        result = dry_publish_response_to_domain(_make_dry_publish_response(trace_id="trace-dry-1"))
-        assert result.trace_id == "trace-dry-1"
-
-    def test_trace_id_defaults_to_none(self) -> None:
+    def test_trace_id_is_not_added_to_result_contract(self) -> None:
         result = dry_publish_response_to_domain(_make_dry_publish_response())
-        assert result.trace_id is None
+        assert not hasattr(result, "trace_id")
 
 
 # ---------------------------------------------------------------------------
@@ -253,8 +248,8 @@ class _StubTransport(Transport):
         self._raise = raise_error
         self.last_request: PublishRequest | None = None
 
-    def list_resources(self, request: ResourceQuery) -> ResourceListResult:
-        return ResourceListResult(resources=[], trace_id=None)
+    def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
+        return []
 
     def get_ticket(self, ticket: DatasetTicket) -> DataTable:
         raise NotImplementedError
@@ -268,7 +263,7 @@ class _StubTransport(Transport):
     def publish_dataset(self, publish_request: PublishRequest) -> PublishResponse:
         raise NotImplementedError
 
-    def get_datetime_formats(self, request: DatetimeFormatsResult) -> DatetimeFormatsResponse:  # type: ignore[override]
+    def get_datetime_formats(self, request: DatetimeFormatsRequest) -> list[str]:
         raise NotImplementedError
 
     def close(self) -> None:
@@ -301,11 +296,6 @@ class TestDryPublishService:
         service, _ = _make_service(dry_publish_return=_make_dry_publish_response())
         result = service.dry_publish(**_default_dry_publish_args())
         assert isinstance(result, DryPublishResult)
-
-    def test_trace_id_is_propagated_from_transport(self) -> None:
-        service, _ = _make_service(dry_publish_return=_make_dry_publish_response(trace_id="trace-dry-svc-1"))
-        result = service.dry_publish(**_default_dry_publish_args())
-        assert result.trace_id == "trace-dry-svc-1"
 
     def test_successful_status_is_propagated(self) -> None:
         service, _ = _make_service(dry_publish_return=_make_dry_publish_response(status=True))
@@ -528,13 +518,6 @@ class TestDryPublishDatasetTransport:
 
         result = transport.dry_publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
         assert isinstance(result, DryPublishResponse)
-
-    def test_trace_id_is_read_from_json_payload(self) -> None:
-        transport = _make_flight_transport()
-        _wire_do_put(transport, {**_VALID_JSON_RESP, "trace_id": "trace-put-1"})
-
-        result = transport.dry_publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
-        assert result.trace_id == "trace-put-1"
 
     def test_status_parsed_from_json(self) -> None:
         transport = _make_flight_transport()

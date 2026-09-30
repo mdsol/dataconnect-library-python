@@ -46,6 +46,7 @@ class TransportError(Exception):
     message: str
     timestamp: str | None = None
     details: list[ErrorDetail] | None = None
+    trace_id: str | None = None
 
 
 class TransportAuthenticationError(TransportError):

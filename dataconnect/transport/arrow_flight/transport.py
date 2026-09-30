@@ -12,6 +12,7 @@ import dataclasses
 import json
 import platform
 import subprocess
+from collections.abc import Callable
 from datetime import UTC, datetime
 from importlib.metadata import version
 
@@ -26,12 +27,10 @@ from dataconnect.transport.models import (
     DatasetTicket,
     DataTable,
     DatetimeFormatsRequest,
-    DatetimeFormatsResponse,
     DryPublishResponse,
     PublishRequest,
     PublishResponse,
     ResourceInfo,
-    ResourceListResult,
     ResourceQuery,
 )
 
@@ -51,7 +50,7 @@ def _to_resource_info(info: flight.FlightInfo) -> ResourceInfo:
     )
 
 
-def _to_bytes(table: pa.Table, trace_id: str | None = None) -> DataTable:
+def _to_bytes(table: pa.Table) -> DataTable:
     """Serialize a ``pa.Table`` to a technology-agnostic ``DataTable``.
 
     Each record batch is serialized individually as Arrow IPC bytes.
@@ -67,7 +66,7 @@ def _to_bytes(table: pa.Table, trace_id: str | None = None) -> DataTable:
     writer.close()
     ipc_bytes = sink.getvalue().to_pybytes()
 
-    return DataTable(schema_bytes=schema_bytes, ipc_bytes=ipc_bytes, trace_id=trace_id)
+    return DataTable(schema_bytes=schema_bytes, ipc_bytes=ipc_bytes)
 
 
 def _normalize_arrow_type(dtype: pa.DataType) -> pa.DataType:
@@ -87,6 +86,68 @@ def _normalize_arrow_type(dtype: pa.DataType) -> pa.DataType:
     if pa.types.is_large_list(dtype):
         return pa.list_(_normalize_arrow_type(dtype.value_type))
     return dtype
+
+
+_TRACE_ID_RESPONSE_HEADER = "x-dataconnect-trace-id"
+
+
+class _TraceClientMiddleware(flight.ClientMiddleware):
+    def __init__(
+        self,
+        capture_trace_id: Callable[[str | None], None],
+        capture_payload_trace_id: Callable[[object], None],
+    ) -> None:
+        self._capture_trace_id = capture_trace_id
+        self._capture_payload_trace_id = capture_payload_trace_id
+
+    def received_headers(self, headers: dict[str, list[str | bytes]]) -> None:
+        values = headers.get(_TRACE_ID_RESPONSE_HEADER)
+        if not values:
+            return
+
+        trace_id = values[0]
+        if isinstance(trace_id, bytes):
+            trace_id = trace_id.decode("utf-8", errors="replace")
+        if trace_id:
+            self._capture_trace_id(trace_id)
+
+    def call_completed(self, exception: Exception | None) -> None:
+        if exception is None:
+            return
+
+        message = str(exception)
+        separator = message.find("::")
+        if separator < 0:
+            return
+
+        payload_text = message[separator + 2 :]
+        payload_start = payload_text.find("{")
+        if payload_start < 0:
+            return
+
+        try:
+            payload, _ = json.JSONDecoder().raw_decode(payload_text[payload_start:])
+        except json.JSONDecodeError:
+            return
+
+        if isinstance(payload, dict):
+            self._capture_payload_trace_id(payload.get("trace_id"))
+
+
+class _TraceClientMiddlewareFactory(flight.ClientMiddlewareFactory):
+    def __init__(
+        self,
+        begin_call: Callable[[], None],
+        capture_trace_id: Callable[[str | None], None],
+        capture_payload_trace_id: Callable[[object], None],
+    ) -> None:
+        self._begin_call = begin_call
+        self._capture_trace_id = capture_trace_id
+        self._capture_payload_trace_id = capture_payload_trace_id
+
+    def start_call(self, _info: object) -> _TraceClientMiddleware:
+        self._begin_call()
+        return _TraceClientMiddleware(self._capture_trace_id, self._capture_payload_trace_id)
 
 
 # Maps service-layer action names to the flight_type value the Arrow Flight server expects.
@@ -118,6 +179,10 @@ class ArrowFlightTransport(Transport):
             token: Optional Bearer token appended to every request header.
         """
         self._call_headers: list[tuple[bytes, bytes]] = []
+        self._trace_id: str | None = None
+        self._trace_middleware = _TraceClientMiddlewareFactory(
+            self._begin_call, self._capture_trace_id, self._capture_payload_trace_id
+        )
 
         scheme = "grpc+tls" if use_tls else "grpc"
         uri = f"{scheme}://{host}:{port}"
@@ -174,9 +239,9 @@ class ArrowFlightTransport(Transport):
                 pem_parts.append("\n".join(lines))
 
             pem_certs = "\n".join(pem_parts).encode("utf-8")
-            client = flight.FlightClient(uri, tls_root_certs=pem_certs)
+            client = flight.FlightClient(uri, tls_root_certs=pem_certs, middleware=[self._trace_middleware])
         else:
-            client = flight.FlightClient(uri)
+            client = flight.FlightClient(uri, middleware=[self._trace_middleware])
 
         return client
 
@@ -184,9 +249,24 @@ class ArrowFlightTransport(Transport):
         """Return call options containing the configured request headers."""
         return flight.FlightCallOptions(headers=self._call_headers)
 
+    @property
+    def trace_id(self) -> str | None:
+        return self._trace_id
+
+    def _begin_call(self) -> None:
+        self._trace_id = None
+
+    def _capture_trace_id(self, trace_id: str | None) -> None:
+        if trace_id:
+            self._trace_id = trace_id
+
+    def _capture_payload_trace_id(self, trace_id: object) -> None:
+        if self._trace_id is None and isinstance(trace_id, str) and trace_id:
+            self._trace_id = trace_id
+
     # Transport
 
-    def list_resources(self, request: ResourceQuery) -> ResourceListResult:
+    def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
         """Translate the action name to Arrow Flight criteria and return resource records."""
 
         flight_type = _ACTION_FLIGHT_TYPE.get(request.action)
@@ -204,14 +284,15 @@ class ArrowFlightTransport(Transport):
         try:
             raw_flights = list(self._client.list_flights(criteria, self._options()))
 
-            trace_id = None
             if raw_flights and raw_flights[0].app_metadata:
                 try:
-                    trace_id = json.loads(raw_flights[0].app_metadata.decode("utf-8")).get("trace_id")
+                    metadata = json.loads(raw_flights[0].app_metadata.decode("utf-8"))
+                    if isinstance(metadata, dict):
+                        self._capture_payload_trace_id(metadata.get("trace_id"))
                 except (json.JSONDecodeError, UnicodeDecodeError):
-                    trace_id = None
+                    pass
 
-            return ResourceListResult(resources=[_to_resource_info(f) for f in raw_flights], trace_id=trace_id)
+            return [_to_resource_info(f) for f in raw_flights]
 
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex
@@ -234,13 +315,12 @@ class ArrowFlightTransport(Transport):
                 except flight.FlightError as ex:
                     raise parse_dataconnect_error(ex) from ex
 
-            trace_id = None
             if table.schema.metadata:
                 raw_trace_id = table.schema.metadata.get(b"trace_id")
                 if raw_trace_id is not None:
-                    trace_id = raw_trace_id.decode("utf-8")
+                    self._capture_payload_trace_id(raw_trace_id.decode("utf-8"))
 
-            return _to_bytes(pa.Table.from_batches(batches, schema=table.schema), trace_id=trace_id)
+            return _to_bytes(pa.Table.from_batches(batches, schema=table.schema))
 
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex
@@ -371,7 +451,7 @@ class ArrowFlightTransport(Transport):
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex
 
-    def get_datetime_formats(self, request: DatetimeFormatsRequest) -> DatetimeFormatsResponse:
+    def get_datetime_formats(self, request: DatetimeFormatsRequest) -> list[str]:
         """Invoke the Arrow Flight ``get_datetime_formats`` action and return the format list.
 
         The server expects a JSON body of the form
@@ -398,10 +478,15 @@ class ArrowFlightTransport(Transport):
             results = list(self._client.do_action(action, self._options()))
 
             if not results:
-                return DatetimeFormatsResponse(formats=[], trace_id=None)
+                return []
 
             response = json.loads(results[0].body.to_pybytes().decode("utf-8"))
-            return DatetimeFormatsResponse(formats=response.get("formats", []), trace_id=response.get("trace_id"))
+            if isinstance(response, list):
+                return response
+            if isinstance(response, dict):
+                self._capture_payload_trace_id(response.get("trace_id"))
+                return response.get("formats", [])
+            return []
 
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex

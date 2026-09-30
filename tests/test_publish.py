@@ -30,11 +30,10 @@ from dataconnect.transport.models import (
     DatasetTicket,
     DataTable,
     DatetimeFormatsRequest,
-    DatetimeFormatsResponse,
     DryPublishResponse,
     PublishRequest,
     PublishResponse,
-    ResourceListResult,
+    ResourceInfo,
     ResourceQuery,
     ResponseMetadata,
     ResponseMetrics,
@@ -73,7 +72,6 @@ def _make_publish_response(**overrides: object) -> PublishResponse:
             total_duplicate_rows=flat["duplicate_record_count"],
         ),
         invalid_records=flat["invalid_records"],
-        trace_id=overrides.get("trace_id"),  # type: ignore[arg-type]
     )
 
 
@@ -148,13 +146,9 @@ class TestPublishResponseToDomain:
         result = publish_response_to_domain(_make_publish_response())
         assert isinstance(result, PublishResult)
 
-    def test_trace_id_mapped(self) -> None:
-        result = publish_response_to_domain(_make_publish_response(trace_id="trace-pub-1"))
-        assert result.trace_id == "trace-pub-1"
-
-    def test_trace_id_defaults_to_none(self) -> None:
+    def test_trace_id_is_not_added_to_result_contract(self) -> None:
         result = publish_response_to_domain(_make_publish_response())
-        assert result.trace_id is None
+        assert not hasattr(result, "trace_id")
 
 
 # ---------------------------------------------------------------------------
@@ -174,8 +168,8 @@ class _StubTransport(Transport):
         self._raise = raise_error
         self.last_request: PublishRequest | None = None
 
-    def list_resources(self, request: ResourceQuery) -> ResourceListResult:
-        return ResourceListResult(resources=[], trace_id=None)
+    def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
+        return []
 
     def get_ticket(self, ticket: DatasetTicket) -> DataTable:
         raise NotImplementedError
@@ -189,7 +183,7 @@ class _StubTransport(Transport):
             raise self._raise
         return self._return  # type: ignore[return-value]
 
-    def get_datetime_formats(self, request: DatetimeFormatsRequest) -> DatetimeFormatsResponse:  # type: ignore[override]
+    def get_datetime_formats(self, request: DatetimeFormatsRequest) -> list[str]:
         raise NotImplementedError
 
     def close(self) -> None:
@@ -222,11 +216,6 @@ class TestPublishService:
         service, _ = _make_service(publish_return=_make_publish_response())
         result = service.publish(**_default_publish_args())
         assert isinstance(result, PublishResult)
-
-    def test_trace_id_is_propagated_from_transport(self) -> None:
-        service, _ = _make_service(publish_return=_make_publish_response(trace_id="trace-pub-svc-1"))
-        result = service.publish(**_default_publish_args())
-        assert result.trace_id == "trace-pub-svc-1"
 
     def test_successful_status_is_propagated(self) -> None:
         service, _ = _make_service(publish_return=_make_publish_response(status=True))
@@ -449,13 +438,6 @@ class TestPublishDatasetTransport:
 
         result = transport.publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
         assert isinstance(result, PublishResponse)
-
-    def test_trace_id_is_read_from_json_payload(self) -> None:
-        transport = _make_flight_transport()
-        _wire_do_put(transport, {**_VALID_JSON_RESP, "trace_id": "trace-put-2"})
-
-        result = transport.publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
-        assert result.trace_id == "trace-put-2"
 
     def test_status_parsed_from_json(self) -> None:
         transport = _make_flight_transport()

@@ -43,26 +43,54 @@ def translate_error(ex: Exception) -> DataConnectError:
 
     if isinstance(ex, TransportAuthenticationError):
         return AuthenticationError(
-            error_code=ex.error_code, message=ex.message, timestamp=ex.timestamp, details=error_details
+            error_code=ex.error_code,
+            message=ex.message,
+            timestamp=ex.timestamp,
+            details=error_details,
+            trace_id=ex.trace_id,
         )
 
     if isinstance(ex, TransportAuthorizationError):
         return AuthorizationError(
-            error_code=ex.error_code, message=ex.message, timestamp=ex.timestamp, details=error_details
+            error_code=ex.error_code,
+            message=ex.message,
+            timestamp=ex.timestamp,
+            details=error_details,
+            trace_id=ex.trace_id,
         )
 
     if isinstance(ex, TransportValidationError):
         return ValidationError(
-            error_code=ex.error_code, message=ex.message, timestamp=ex.timestamp, details=error_details
+            error_code=ex.error_code,
+            message=ex.message,
+            timestamp=ex.timestamp,
+            details=error_details,
+            trace_id=ex.trace_id,
         )
 
     if isinstance(ex, TransportNotFoundError):
         return NotFoundError(
-            error_code=ex.error_code, message=ex.message, timestamp=ex.timestamp, details=error_details
+            error_code=ex.error_code,
+            message=ex.message,
+            timestamp=ex.timestamp,
+            details=error_details,
+            trace_id=ex.trace_id,
         )
 
     if isinstance(ex, TransportServerError):
-        return ServerError(error_code=ex.error_code, message=ex.message, timestamp=ex.timestamp, details=error_details)
+        return ServerError(
+            error_code=ex.error_code,
+            message=ex.message,
+            timestamp=ex.timestamp,
+            details=error_details,
+            trace_id=ex.trace_id,
+        )
 
     # Non-specific transport error
-    return DataConnectError(error_code=ex.error_code, message=ex.message, timestamp=ex.timestamp, details=error_details)
+    return DataConnectError(
+        error_code=ex.error_code,
+        message=ex.message,
+        timestamp=ex.timestamp,
+        details=error_details,
+        trace_id=ex.trace_id,
+    )

@@ -54,25 +54,15 @@ class ResourceInfo:
 
 
 @dataclass(frozen=True)
-class ResourceListResult:
-    """Result of a resource-listing call (studies/datasets/dataset_versions)."""
-
-    resources: list[ResourceInfo]
-    trace_id: str | None = None
-
-
-@dataclass(frozen=True)
 class DataTable:
     """Technology-agnostic representation of a fetched data result.
 
     ``schema_bytes`` holds the Arrow IPC-serialized schema.
     ``ipc_bytes`` holds the full Arrow IPC stream (schema + all batches).
-    ``trace_id`` is the server's trace id for the call that produced this result, if any.
     """
 
     schema_bytes: bytes
     ipc_bytes: bytes
-    trace_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -88,14 +78,6 @@ class DatetimeFormatsRequest:
 
     project_token: str
     format_type: str = "all"
-
-
-@dataclass(frozen=True)
-class DatetimeFormatsResponse:
-    """Result of a get_datetime_formats call."""
-
-    formats: list[str]
-    trace_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -161,8 +143,6 @@ class PublishEnvelope:
     errors: list[str] = field(default_factory=list)
     invalid_records: pd.DataFrame | None = None
     """Populated from the Arrow IPC channel, not from the JSON payload."""
-    trace_id: str | None = None
-    """Populated from the JSON payload."""
 
     @classmethod
     def from_json(cls, payload: dict, invalid_records: pd.DataFrame | None = None) -> PublishEnvelope:
@@ -198,7 +178,6 @@ class PublishEnvelope:
             ),
             errors=payload.get("errors") or [],
             invalid_records=invalid_records,
-            trace_id=payload.get("trace_id"),
         )
 
 
