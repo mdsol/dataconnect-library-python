@@ -12,6 +12,7 @@ import dataclasses
 import json
 import platform
 import subprocess
+from collections.abc import Callable
 from datetime import UTC, datetime
 from importlib.metadata import version
 
@@ -87,6 +88,68 @@ def _normalize_arrow_type(dtype: pa.DataType) -> pa.DataType:
     return dtype
 
 
+_TRACE_ID_RESPONSE_HEADER = "x-dataconnect-trace-id"
+
+
+class _TraceClientMiddleware(flight.ClientMiddleware):
+    def __init__(
+        self,
+        capture_trace_id: Callable[[str | None], None],
+        capture_payload_trace_id: Callable[[object], None],
+    ) -> None:
+        self._capture_trace_id = capture_trace_id
+        self._capture_payload_trace_id = capture_payload_trace_id
+
+    def received_headers(self, headers: dict[str, list[str | bytes]]) -> None:
+        values = headers.get(_TRACE_ID_RESPONSE_HEADER)
+        if not values:
+            return
+
+        trace_id = values[0]
+        if isinstance(trace_id, bytes):
+            trace_id = trace_id.decode("utf-8", errors="replace")
+        if trace_id:
+            self._capture_trace_id(trace_id)
+
+    def call_completed(self, exception: Exception | None) -> None:
+        if exception is None:
+            return
+
+        message = str(exception)
+        separator = message.find("::")
+        if separator < 0:
+            return
+
+        payload_text = message[separator + 2 :]
+        payload_start = payload_text.find("{")
+        if payload_start < 0:
+            return
+
+        try:
+            payload, _ = json.JSONDecoder().raw_decode(payload_text[payload_start:])
+        except json.JSONDecodeError:
+            return
+
+        if isinstance(payload, dict):
+            self._capture_payload_trace_id(payload.get("trace_id"))
+
+
+class _TraceClientMiddlewareFactory(flight.ClientMiddlewareFactory):
+    def __init__(
+        self,
+        begin_call: Callable[[], None],
+        capture_trace_id: Callable[[str | None], None],
+        capture_payload_trace_id: Callable[[object], None],
+    ) -> None:
+        self._begin_call = begin_call
+        self._capture_trace_id = capture_trace_id
+        self._capture_payload_trace_id = capture_payload_trace_id
+
+    def start_call(self, _info: object) -> _TraceClientMiddleware:
+        self._begin_call()
+        return _TraceClientMiddleware(self._capture_trace_id, self._capture_payload_trace_id)
+
+
 # Maps service-layer action names to the flight_type value the Arrow Flight server expects.
 _ACTION_FLIGHT_TYPE: dict[str, str] = {
     "studies.list": "STUDIES",
@@ -116,6 +179,10 @@ class ArrowFlightTransport(Transport):
             token: Optional Bearer token appended to every request header.
         """
         self._call_headers: list[tuple[bytes, bytes]] = []
+        self._trace_id: str | None = None
+        self._trace_middleware = _TraceClientMiddlewareFactory(
+            self._begin_call, self._capture_trace_id, self._capture_payload_trace_id
+        )
 
         scheme = "grpc+tls" if use_tls else "grpc"
         uri = f"{scheme}://{host}:{port}"
@@ -172,15 +239,30 @@ class ArrowFlightTransport(Transport):
                 pem_parts.append("\n".join(lines))
 
             pem_certs = "\n".join(pem_parts).encode("utf-8")
-            client = flight.FlightClient(uri, tls_root_certs=pem_certs)
+            client = flight.FlightClient(uri, tls_root_certs=pem_certs, middleware=[self._trace_middleware])
         else:
-            client = flight.FlightClient(uri)
+            client = flight.FlightClient(uri, middleware=[self._trace_middleware])
 
         return client
 
     def _options(self) -> flight.FlightCallOptions:
         """Return call options containing the configured request headers."""
         return flight.FlightCallOptions(headers=self._call_headers)
+
+    @property
+    def trace_id(self) -> str | None:
+        return self._trace_id
+
+    def _begin_call(self) -> None:
+        self._trace_id = None
+
+    def _capture_trace_id(self, trace_id: str | None) -> None:
+        if trace_id:
+            self._trace_id = trace_id
+
+    def _capture_payload_trace_id(self, trace_id: object) -> None:
+        if self._trace_id is None and isinstance(trace_id, str) and trace_id:
+            self._trace_id = trace_id
 
     # Transport
 
@@ -200,7 +282,16 @@ class ArrowFlightTransport(Transport):
         criteria = json.dumps({**body, "flight_type": flight_type}, separators=(",", ":")).encode("utf-8")
 
         try:
-            raw_flights = self._client.list_flights(criteria, self._options())
+            raw_flights = list(self._client.list_flights(criteria, self._options()))
+
+            if raw_flights and raw_flights[0].app_metadata:
+                try:
+                    metadata = json.loads(raw_flights[0].app_metadata.decode("utf-8"))
+                    if isinstance(metadata, dict):
+                        self._capture_payload_trace_id(metadata.get("trace_id"))
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    pass
+
             return [_to_resource_info(f) for f in raw_flights]
 
         except Exception as ex:
@@ -223,6 +314,16 @@ class ArrowFlightTransport(Transport):
                     break
                 except flight.FlightError as ex:
                     raise parse_dataconnect_error(ex) from ex
+
+            if table.schema.metadata:
+                raw_trace_id = table.schema.metadata.get(b"trace_id")
+                if raw_trace_id is not None:
+                    try:
+                        trace_id = raw_trace_id.decode("utf-8")
+                    except UnicodeDecodeError:
+                        pass
+                    else:
+                        self._capture_payload_trace_id(trace_id)
 
             return _to_bytes(pa.Table.from_batches(batches, schema=table.schema))
 
@@ -283,6 +384,7 @@ class ArrowFlightTransport(Transport):
                 # The server first writes a JSON result, then the Arrow table as IPC bytes
                 _json_buf = reader.read()
                 json_result = json.loads(_json_buf.to_pybytes())
+                self._capture_payload_trace_id(json_result.get("trace_id"))
 
                 # Read the Arrow table returned by the server upon successful publishing
                 metadata_buf = reader.read()
@@ -340,6 +442,7 @@ class ArrowFlightTransport(Transport):
                 # The server first writes a JSON result, then the Arrow table as IPC bytes
                 _json_buf = reader.read()
                 json_result = json.loads(_json_buf.to_pybytes())
+                self._capture_payload_trace_id(json_result.get("trace_id"))
 
                 # Read the Arrow table returned by the server upon successful publishing
                 metadata_buf = reader.read()
@@ -384,7 +487,13 @@ class ArrowFlightTransport(Transport):
             if not results:
                 return []
 
-            return json.loads(results[0].body.to_pybytes().decode("utf-8"))
+            response = json.loads(results[0].body.to_pybytes().decode("utf-8"))
+            if isinstance(response, list):
+                return response
+            if isinstance(response, dict):
+                self._capture_payload_trace_id(response.get("trace_id"))
+                return response.get("formats", [])
+            return []
 
         except Exception as ex:
             raise parse_dataconnect_error(ex) from ex

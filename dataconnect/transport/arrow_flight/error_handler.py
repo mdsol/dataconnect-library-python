@@ -205,6 +205,7 @@ def parse_dataconnect_error(ex: Exception) -> TransportError:
                     ]
 
                 error_code = error_data.get("error_code", "SDK_ERROR")
+                trace_id = error_data.get("trace_id")
 
                 if error_code.startswith("AUTH_"):
                     return TransportAuthenticationError(
@@ -212,6 +213,7 @@ def parse_dataconnect_error(ex: Exception) -> TransportError:
                         message=error_data.get("message") or _UNKNOWN_ERROR,
                         timestamp=error_data.get("timestamp"),
                         details=parsed_details,
+                        trace_id=trace_id,
                     )
 
                 if error_code.startswith("AUTHZ_"):
@@ -220,6 +222,7 @@ def parse_dataconnect_error(ex: Exception) -> TransportError:
                         message=error_data.get("message") or _UNKNOWN_ERROR,
                         timestamp=error_data.get("timestamp"),
                         details=parsed_details,
+                        trace_id=trace_id,
                     )
 
                 if error_code.startswith("VAL_"):
@@ -228,6 +231,7 @@ def parse_dataconnect_error(ex: Exception) -> TransportError:
                         message=error_data.get("message") or _UNKNOWN_ERROR,
                         timestamp=error_data.get("timestamp"),
                         details=parsed_details,
+                        trace_id=trace_id,
                     )
 
                 if error_code.startswith("RES_"):
@@ -236,6 +240,7 @@ def parse_dataconnect_error(ex: Exception) -> TransportError:
                         message=error_data.get("message") or _UNKNOWN_ERROR,
                         timestamp=error_data.get("timestamp"),
                         details=parsed_details,
+                        trace_id=trace_id,
                     )
 
                 if error_code.startswith("INT_"):
@@ -244,6 +249,7 @@ def parse_dataconnect_error(ex: Exception) -> TransportError:
                         message=error_data.get("message") or _UNKNOWN_ERROR,
                         timestamp=error_data.get("timestamp"),
                         details=parsed_details,
+                        trace_id=trace_id,
                     )
 
                 return TransportError(
@@ -251,6 +257,7 @@ def parse_dataconnect_error(ex: Exception) -> TransportError:
                     message=error_data.get("message") or _UNKNOWN_ERROR,
                     timestamp=error_data.get("timestamp"),
                     details=parsed_details,
+                    trace_id=trace_id,
                 )
 
         return TransportError(error_code="SDK_ERROR", message=error_message)

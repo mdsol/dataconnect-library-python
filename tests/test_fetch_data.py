@@ -22,7 +22,7 @@ from dataconnect.transport.errors import (
     TransportNotFoundError,
     TransportServerError,
 )
-from dataconnect.transport.models import DatasetTicket, DataTable, ResourceInfo, ResourceQuery
+from dataconnect.transport.models import DatasetTicket, DataTable, ResourceQuery
 
 # ---------------------------------------------------------------------------
 # Fake transport
@@ -41,7 +41,7 @@ class _FakeTransport:
         self._get_ticket_error = get_ticket_error
         self.last_ticket: DatasetTicket | None = None
 
-    def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
+    def list_resources(self, request: ResourceQuery) -> list:
         return []
 
     def get_ticket(self, ticket: DatasetTicket) -> DataTable:

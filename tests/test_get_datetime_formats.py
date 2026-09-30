@@ -28,7 +28,6 @@ from dataconnect.transport.models import (
     DryPublishResponse,
     PublishRequest,
     PublishResponse,
-    ResourceInfo,
     ResourceQuery,
 )
 
@@ -52,12 +51,14 @@ class _StubTransport(Transport):
         self,
         formats: list[str] | None = None,
         raise_error: Exception | None = None,
+        trace_id: str | None = None,
     ) -> None:
         self._formats = formats if formats is not None else list(_SAMPLE_FORMATS)
         self._raise = raise_error
+        self.trace_id = trace_id
         self.last_request: DatetimeFormatsRequest | None = None
 
-    def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
+    def list_resources(self, request: ResourceQuery) -> list:
         return []
 
     def get_ticket(self, ticket: DatasetTicket) -> DataTable:
@@ -82,8 +83,9 @@ class _StubTransport(Transport):
 def _make_service(
     formats: list[str] | None = None,
     raise_error: Exception | None = None,
+    trace_id: str | None = None,
 ) -> tuple[DefaultDataConnectService, _StubTransport]:
-    transport = _StubTransport(formats=formats, raise_error=raise_error)
+    transport = _StubTransport(formats=formats, raise_error=raise_error, trace_id=trace_id)
     return DefaultDataConnectService(transport), transport
 
 
@@ -249,6 +251,16 @@ class TestServiceGetDatetimeFormats:
         assert result.dates() == []
         assert result.datetimes() == []
 
+    def test_trace_id_is_propagated_from_transport(self) -> None:
+        service, _ = _make_service(trace_id="trace-fmt-1")
+        service.get_datetime_formats(project_token="tok")
+        assert service.trace_id == "trace-fmt-1"
+
+    def test_trace_id_defaults_to_none(self) -> None:
+        service, _ = _make_service()
+        service.get_datetime_formats(project_token="tok")
+        assert service.trace_id is None
+
     # --- error translation ---
 
     def test_transport_validation_error_is_translated_to_service_error(self) -> None:
@@ -274,9 +286,9 @@ def _make_flight_transport() -> ArrowFlightTransport:
         return ArrowFlightTransport(host="localhost", port=5005, use_tls=False)
 
 
-def _make_action_result(payload: list[str]) -> MagicMock:
+def _make_action_result(formats: list[str]) -> MagicMock:
     body = MagicMock()
-    body.to_pybytes.return_value = json.dumps(payload).encode("utf-8")
+    body.to_pybytes.return_value = json.dumps(formats).encode("utf-8")
     result = MagicMock()
     result.body = body
     return result
@@ -310,17 +322,17 @@ class TestTransportGetDatetimeFormats:
         transport = _make_flight_transport()
         transport._client.do_action.return_value = iter([_make_action_result(_SAMPLE_FORMATS)])
 
-        result = transport.get_datetime_formats(DatetimeFormatsRequest(project_token="tok", format_type="all"))
+        response = transport.get_datetime_formats(DatetimeFormatsRequest(project_token="tok", format_type="all"))
 
-        assert result == _SAMPLE_FORMATS
+        assert response == _SAMPLE_FORMATS
 
     def test_empty_result_iterator_returns_empty_list(self) -> None:
         transport = _make_flight_transport()
         transport._client.do_action.return_value = iter([])
 
-        result = transport.get_datetime_formats(DatetimeFormatsRequest(project_token="tok", format_type="all"))
+        response = transport.get_datetime_formats(DatetimeFormatsRequest(project_token="tok", format_type="all"))
 
-        assert result == []
+        assert response == []
 
     def test_underlying_exception_is_translated_to_transport_error(self) -> None:
         from dataconnect.transport.errors import TransportError
