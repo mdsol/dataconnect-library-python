@@ -75,6 +75,19 @@ def test_get_ticket_returns_no_trace_id_when_schema_metadata_is_absent() -> None
     assert isinstance(result.schema_bytes, bytes)
 
 
+def test_get_ticket_ignores_malformed_trace_id_metadata() -> None:
+    transport = _make_transport()
+    reader = MagicMock()
+    reader.schema = pa.schema([("id", pa.int64())], metadata={b"trace_id": b"\xff"})
+    reader.read_chunk.side_effect = StopIteration
+    transport._client.do_get.return_value = reader
+
+    result = transport.get_ticket(DatasetTicket(dataset_uuid="dataset-1"))
+
+    assert isinstance(result.schema_bytes, bytes)
+    assert transport.trace_id is None
+
+
 def test_client_middleware_captures_response_trace_header_and_clears_previous_value() -> None:
     transport = _make_transport()
     transport._trace_id = "previous-trace"

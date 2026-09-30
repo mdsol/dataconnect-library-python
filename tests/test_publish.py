@@ -439,6 +439,15 @@ class TestPublishDatasetTransport:
         result = transport.publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
         assert isinstance(result, PublishResponse)
 
+    def test_captures_trace_id_from_response_payload_without_changing_result(self) -> None:
+        transport = _make_flight_transport()
+        _wire_do_put(transport, {**_VALID_JSON_RESP, "trace_id": "publish-trace"})
+
+        result = transport.publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
+
+        assert transport.trace_id == "publish-trace"
+        assert not hasattr(result, "trace_id")
+
     def test_status_parsed_from_json(self) -> None:
         transport = _make_flight_transport()
         _wire_do_put(transport, {**_VALID_JSON_RESP, "success": False})

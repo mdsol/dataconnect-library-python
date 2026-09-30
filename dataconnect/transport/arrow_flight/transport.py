@@ -318,7 +318,12 @@ class ArrowFlightTransport(Transport):
             if table.schema.metadata:
                 raw_trace_id = table.schema.metadata.get(b"trace_id")
                 if raw_trace_id is not None:
-                    self._capture_payload_trace_id(raw_trace_id.decode("utf-8"))
+                    try:
+                        trace_id = raw_trace_id.decode("utf-8")
+                    except UnicodeDecodeError:
+                        pass
+                    else:
+                        self._capture_payload_trace_id(trace_id)
 
             return _to_bytes(pa.Table.from_batches(batches, schema=table.schema))
 
@@ -379,6 +384,7 @@ class ArrowFlightTransport(Transport):
                 # The server first writes a JSON result, then the Arrow table as IPC bytes
                 _json_buf = reader.read()
                 json_result = json.loads(_json_buf.to_pybytes())
+                self._capture_payload_trace_id(json_result.get("trace_id"))
 
                 # Read the Arrow table returned by the server upon successful publishing
                 metadata_buf = reader.read()
@@ -436,6 +442,7 @@ class ArrowFlightTransport(Transport):
                 # The server first writes a JSON result, then the Arrow table as IPC bytes
                 _json_buf = reader.read()
                 json_result = json.loads(_json_buf.to_pybytes())
+                self._capture_payload_trace_id(json_result.get("trace_id"))
 
                 # Read the Arrow table returned by the server upon successful publishing
                 metadata_buf = reader.read()
