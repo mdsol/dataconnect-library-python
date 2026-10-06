@@ -28,7 +28,6 @@ from dataconnect.transport.models import (
     DryPublishResponse,
     PublishRequest,
     PublishResponse,
-    ResourceInfo,
     ResourceQuery,
 )
 
@@ -52,12 +51,14 @@ class _StubTransport(Transport):
         self,
         formats: list[str] | None = None,
         raise_error: Exception | None = None,
+        trace_id: str | None = None,
     ) -> None:
         self._formats = formats if formats is not None else list(_SAMPLE_FORMATS)
         self._raise = raise_error
+        self.trace_id = trace_id
         self.last_request: DatetimeFormatsRequest | None = None
 
-    def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
+    def list_resources(self, request: ResourceQuery) -> list:
         return []
 
     def get_ticket(self, ticket: DatasetTicket) -> DataTable:
@@ -82,8 +83,9 @@ class _StubTransport(Transport):
 def _make_service(
     formats: list[str] | None = None,
     raise_error: Exception | None = None,
+    trace_id: str | None = None,
 ) -> tuple[DefaultDataConnectService, _StubTransport]:
-    transport = _StubTransport(formats=formats, raise_error=raise_error)
+    transport = _StubTransport(formats=formats, raise_error=raise_error, trace_id=trace_id)
     return DefaultDataConnectService(transport), transport
 
 
@@ -249,6 +251,16 @@ class TestServiceGetDatetimeFormats:
         assert result.dates() == []
         assert result.datetimes() == []
 
+    def test_trace_id_is_propagated_from_transport(self) -> None:
+        service, _ = _make_service(trace_id="trace-fmt-1")
+        service.get_datetime_formats(project_token="tok")
+        assert service.trace_id == "trace-fmt-1"
+
+    def test_trace_id_defaults_to_none(self) -> None:
+        service, _ = _make_service()
+        service.get_datetime_formats(project_token="tok")
+        assert service.trace_id is None
+
     # --- error translation ---
 
     def test_transport_validation_error_is_translated_to_service_error(self) -> None:
@@ -274,9 +286,9 @@ def _make_flight_transport() -> ArrowFlightTransport:
         return ArrowFlightTransport(host="localhost", port=5005, use_tls=False)
 
 
-def _make_action_result(payload: list[str]) -> MagicMock:
+def _make_action_result(formats: list[str] | dict[str, object]) -> MagicMock:
     body = MagicMock()
-    body.to_pybytes.return_value = json.dumps(payload).encode("utf-8")
+    body.to_pybytes.return_value = json.dumps(formats).encode("utf-8")
     result = MagicMock()
     result.body = body
     return result
@@ -310,17 +322,17 @@ class TestTransportGetDatetimeFormats:
         transport = _make_flight_transport()
         transport._client.do_action.return_value = iter([_make_action_result(_SAMPLE_FORMATS)])
 
-        result = transport.get_datetime_formats(DatetimeFormatsRequest(project_token="tok", format_type="all"))
+        response = transport.get_datetime_formats(DatetimeFormatsRequest(project_token="tok", format_type="all"))
 
-        assert result == _SAMPLE_FORMATS
+        assert response == _SAMPLE_FORMATS
 
     def test_empty_result_iterator_returns_empty_list(self) -> None:
         transport = _make_flight_transport()
         transport._client.do_action.return_value = iter([])
 
-        result = transport.get_datetime_formats(DatetimeFormatsRequest(project_token="tok", format_type="all"))
+        response = transport.get_datetime_formats(DatetimeFormatsRequest(project_token="tok", format_type="all"))
 
-        assert result == []
+        assert response == []
 
     def test_underlying_exception_is_translated_to_transport_error(self) -> None:
         from dataconnect.transport.errors import TransportError
@@ -330,6 +342,64 @@ class TestTransportGetDatetimeFormats:
 
         with pytest.raises(TransportError):
             transport.get_datetime_formats(DatetimeFormatsRequest(project_token="tok", format_type="all"))
+
+    def test_envelope_response_returns_formats_and_captures_trace_id(self) -> None:
+        transport = _make_flight_transport()
+        envelope = {"formats": _SAMPLE_FORMATS, "trace_id": "trace-envelope-1"}
+        transport._client.do_action.return_value = iter([_make_action_result(envelope)])
+
+        response = transport.get_datetime_formats(DatetimeFormatsRequest(project_token="tok", format_type="all"))
+
+        assert response == _SAMPLE_FORMATS
+        assert transport.trace_id == "trace-envelope-1"
+
+    def test_header_trace_id_takes_precedence_over_envelope_trace_id(self) -> None:
+        transport = _make_flight_transport()
+        envelope = {"formats": _SAMPLE_FORMATS, "trace_id": "trace-envelope-1"}
+
+        def do_action(*_args: object, **_kwargs: object) -> object:
+            middleware = transport._trace_middleware.start_call(None)
+            middleware.received_headers({"x-dataconnect-trace-id": ["trace-header-1"]})
+            return iter([_make_action_result(envelope)])
+
+        transport._client.do_action.side_effect = do_action
+
+        transport.get_datetime_formats(DatetimeFormatsRequest(project_token="tok", format_type="all"))
+
+        assert transport.trace_id == "trace-header-1"
+
+    def test_envelope_trace_id_is_kept_when_stream_fails_after_first_result(self) -> None:
+        from dataconnect.transport.errors import TransportError
+
+        transport = _make_flight_transport()
+        envelope = {"formats": _SAMPLE_FORMATS, "trace_id": "trace-envelope-partial"}
+
+        def interrupted_stream() -> object:
+            yield _make_action_result(envelope)
+            raise RuntimeError("stream interrupted")
+
+        transport._client.do_action.return_value = interrupted_stream()
+
+        with pytest.raises(TransportError) as error:
+            transport.get_datetime_formats(DatetimeFormatsRequest(project_token="tok", format_type="all"))
+
+        assert error.value.trace_id == "trace-envelope-partial"
+        assert transport.trace_id == "trace-envelope-partial"
+
+    def test_previous_trace_id_is_cleared_when_next_response_has_none(self) -> None:
+        transport = _make_flight_transport()
+        envelope = {"formats": _SAMPLE_FORMATS, "trace_id": "trace-envelope-1"}
+        transport._client.do_action.side_effect = [
+            iter([_make_action_result(envelope)]),
+            iter([_make_action_result(_SAMPLE_FORMATS)]),
+        ]
+        request = DatetimeFormatsRequest(project_token="tok", format_type="all")
+
+        transport.get_datetime_formats(request)
+        assert transport.trace_id == "trace-envelope-1"
+
+        transport.get_datetime_formats(request)
+        assert transport.trace_id is None
 
 
 # ---------------------------------------------------------------------------

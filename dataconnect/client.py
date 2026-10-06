@@ -34,6 +34,11 @@ class DataConnectClient:
         """Initialize the client with an injected service implementation."""
         self._service = service
 
+    @property
+    def trace_id(self) -> str | None:
+        """Trace ID from the most recent sequential request, when available."""
+        return getattr(self._service, "trace_id", None)
+
     @classmethod
     def connect(
         cls,
@@ -67,7 +72,7 @@ class DataConnectClient:
         dataset_uuid: UUID,
         first_n_rows: int | None = None,
     ) -> pd.DataFrame:
-        """Fetch data frames for a given dataset UUID."""
+        """Fetch data for a given dataset UUID."""
         return self._service.fetch_data(dataset_uuid, first_n_rows)
 
     def get_datasets(
@@ -121,8 +126,8 @@ class DataConnectClient:
 
         Returns:
             A :class:`DryPublishResult` containing the server's validation
-            outcome, including per-field validity flags, error messages, and
-            an optional ``invalid_records`` DataFrame.
+            outcome, including per-field validity flags, error messages, an
+                optional ``invalid_records`` DataFrame.
         """
         return self._service.dry_publish(
             project_token=project_token,
