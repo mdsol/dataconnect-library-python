@@ -48,6 +48,7 @@ class DataConnectError(Exception):
     message: str
     timestamp: str | None = None
     details: list[ErrorDetail] | None = None
+    trace_id: str | None = None
 
     def __str__(self) -> str:
         lines = [
@@ -62,6 +63,10 @@ class DataConnectError(Exception):
             lines.append("Details:")
             for detail in self.details:
                 lines.append(str(detail))
+
+        if self.trace_id is not None:
+            indent = "    " if self.details else ""
+            lines.append(f"{indent}Trace ID: {self.trace_id}")
 
         return "\n".join(lines)
 
