@@ -16,7 +16,13 @@ from dataconnect.client import DataConnectClient
 from dataconnect.models import Dataset, PaginatedResponse, Pagination
 from dataconnect.service.default import DefaultDataConnectService
 from dataconnect.transport.errors import TransportError
-from dataconnect.transport.models import DataRef, DatasetTicket, DataTable, ResourceInfo, ResourceQuery
+from dataconnect.transport.models import (
+    DataRef,
+    DatasetTicket,
+    DataTable,
+    ResourceInfo,
+    ResourceQuery,
+)
 
 
 class _FakeTransport:
@@ -24,9 +30,11 @@ class _FakeTransport:
         self,
         resources: list[ResourceInfo] | None = None,
         error: Exception | None = None,
+        trace_id: str | None = None,
     ) -> None:
         self._resources = resources or []
         self._error = error
+        self.trace_id = trace_id
         self.last_request: ResourceQuery | None = None
 
     def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
@@ -156,6 +164,22 @@ class TestGetDatasetsReturnsPaginatedResponse:
         with pytest.raises(Exception, match="cannot connect"):
             service.get_datasets(study_environment_uuid=_STUDY_ENV_UUID)
 
+    def test_returns_trace_id_from_transport(self) -> None:
+        transport = _FakeTransport(resources=[], trace_id="trace-datasets-1")
+        service = DefaultDataConnectService(transport)
+
+        service.get_datasets(study_environment_uuid=_STUDY_ENV_UUID)
+
+        assert service.trace_id == "trace-datasets-1"
+
+    def test_trace_id_defaults_to_none(self) -> None:
+        transport = _FakeTransport(resources=[])
+        service = DefaultDataConnectService(transport)
+
+        service.get_datasets(study_environment_uuid=_STUDY_ENV_UUID)
+
+        assert service.trace_id is None
+
     def test_multiple_items_returned(self) -> None:
         resources = [
             _dataset_resource(
@@ -231,7 +255,8 @@ class _PagedFetchingTransport(_FakeTransport):
         self.requests.append(request)
         body = json.loads(request.body)
         total_records = sum(len(payloads) for payloads in self.pages.values())
-        return [_dataset_resource(payload, total_records) for payload in self.pages[body["page"]]]
+        resources = [_dataset_resource(payload, total_records) for payload in self.pages[body["page"]]]
+        return resources
 
     def get_ticket(self, ticket: DatasetTicket) -> DataTable:
         if self.closed:
@@ -477,3 +502,15 @@ def test_dataset_versions_response_is_unchanged_before_and_after_listing() -> No
     assert transport.last_request is not None
     assert transport.last_request.action == "dataset_versions.list"
     assert json.loads(transport.last_request.body) == {"dataset_uuid": _DATASET_UUID}
+
+
+def test_get_dataset_versions_returns_trace_id_from_transport() -> None:
+    transport = _FakeTransport(
+        resources=[_dataset_resource({**_IDENTIFIERS, "dataset_version": "1"})],
+        trace_id="trace-versions-1",
+    )
+    service = DefaultDataConnectService(transport)
+
+    service.get_dataset_versions(UUID(_DATASET_UUID))
+
+    assert service.trace_id == "trace-versions-1"

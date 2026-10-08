@@ -161,10 +161,50 @@ def _normalize_enodia_error(error_message: str) -> str:
         return error_message
 
 
+def _decode_payload_candidate(candidate: str) -> dict | None:
+    """Parse a ``{...}`` candidate that may be raw JSON or still inside a gRPC-escaped string."""
+    decoder = json.JSONDecoder()
+    payload: object = None
+
+    try:
+        payload, _ = decoder.raw_decode(candidate)
+    except json.JSONDecodeError:
+        try:
+            unescaped = re.sub(r"(?<!\\)\\'", "'", candidate)
+            decoded_text, _ = decoder.raw_decode('"' + unescaped + '"')
+            payload, _ = decoder.raw_decode(decoded_text)
+        except json.JSONDecodeError:
+            try:
+                payload = json.loads(_extract_json_object(candidate))
+            except json.JSONDecodeError:
+                return None
+
+    # Nested ``details`` items are not error payloads.
+    if isinstance(payload, dict) and "error_code" in payload:
+        return payload
+    return None
+
+
+def extract_error_payload(error_message: str) -> dict | None:
+    """Find a structured error payload in direct or gRPC-wrapped Flight text."""
+    normalized_message = _normalize_enodia_error(error_message)
+    messages = (error_message,) if normalized_message == error_message else (error_message, normalized_message)
+
+    for message in messages:
+        for delimiter in re.finditer(r"::", message):
+            payload_text = message[delimiter.end() :]
+            for brace in re.finditer(r"\{", payload_text):
+                payload = _decode_payload_candidate(payload_text[brace.start() :])
+                if payload is not None:
+                    return payload
+
+    return None
+
+
 _UNKNOWN_ERROR = "Unknown error"
 
 
-def parse_dataconnect_error(ex: Exception) -> TransportError:
+def parse_dataconnect_error(ex: Exception, trace_id: str | None = None) -> TransportError:
     """Parse a raw exception into a typed ``TransportError``.
 
     Extracts a structured ``PREFIX::JSON`` payload from the exception message,
@@ -175,85 +215,88 @@ def parse_dataconnect_error(ex: Exception) -> TransportError:
     the message cannot be parsed or does not match the expected format.
     """
     try:
+        if isinstance(ex, TransportError):
+            if ex.trace_id is None:
+                ex.trace_id = trace_id
+            return ex
+
         error_message = str(ex)
 
-        # Normalize enodia authentication errors into PREFIX::JSON format
-        error_message = _normalize_enodia_error(error_message)
-
-        if "::" in error_message:
-            delimiter_pos = error_message.index("::")
-            json_part_raw = error_message[delimiter_pos + 2 :]
-
-            if json_part_raw:
-                json_part = _extract_json_object(json_part_raw)
-
-                error_data: dict = json.loads(json_part)
-
-                parsed_details: list[ErrorDetail] | None = None
-                raw_details = error_data.get("details")
-                if isinstance(raw_details, list):
-                    standard_keys = {"field", "message", "expected"}
-                    parsed_details = [
-                        ErrorDetail(
-                            field=item.get("field"),
-                            message=item.get("message"),
-                            expected=item.get("expected"),
-                            extra={k: v for k, v in item.items() if k not in standard_keys},
-                        )
-                        for item in raw_details
-                        if isinstance(item, dict)
-                    ]
-
-                error_code = error_data.get("error_code", "SDK_ERROR")
-
-                if error_code.startswith("AUTH_"):
-                    return TransportAuthenticationError(
-                        error_code=error_code,
-                        message=error_data.get("message") or _UNKNOWN_ERROR,
-                        timestamp=error_data.get("timestamp"),
-                        details=parsed_details,
+        error_data = extract_error_payload(error_message)
+        if error_data is not None:
+            parsed_details: list[ErrorDetail] | None = None
+            raw_details = error_data.get("details")
+            if isinstance(raw_details, list):
+                standard_keys = {"field", "message", "expected"}
+                parsed_details = [
+                    ErrorDetail(
+                        field=item.get("field"),
+                        message=item.get("message"),
+                        expected=item.get("expected"),
+                        extra={k: v for k, v in item.items() if k not in standard_keys},
                     )
+                    for item in raw_details
+                    if isinstance(item, dict)
+                ]
 
-                if error_code.startswith("AUTHZ_"):
-                    return TransportAuthorizationError(
-                        error_code=error_code,
-                        message=error_data.get("message") or _UNKNOWN_ERROR,
-                        timestamp=error_data.get("timestamp"),
-                        details=parsed_details,
-                    )
+            error_code = error_data.get("error_code", "SDK_ERROR")
+            payload_trace_id = error_data.get("trace_id")
+            parsed_trace_id = trace_id or (payload_trace_id if isinstance(payload_trace_id, str) else None) or None
 
-                if error_code.startswith("VAL_"):
-                    return TransportValidationError(
-                        error_code=error_code,
-                        message=error_data.get("message") or _UNKNOWN_ERROR,
-                        timestamp=error_data.get("timestamp"),
-                        details=parsed_details,
-                    )
-
-                if error_code.startswith("RES_"):
-                    return TransportNotFoundError(
-                        error_code=error_code,
-                        message=error_data.get("message") or _UNKNOWN_ERROR,
-                        timestamp=error_data.get("timestamp"),
-                        details=parsed_details,
-                    )
-
-                if error_code.startswith("INT_"):
-                    return TransportServerError(
-                        error_code=error_code,
-                        message=error_data.get("message") or _UNKNOWN_ERROR,
-                        timestamp=error_data.get("timestamp"),
-                        details=parsed_details,
-                    )
-
-                return TransportError(
+            if error_code.startswith("AUTH_"):
+                return TransportAuthenticationError(
                     error_code=error_code,
                     message=error_data.get("message") or _UNKNOWN_ERROR,
                     timestamp=error_data.get("timestamp"),
                     details=parsed_details,
+                    trace_id=parsed_trace_id,
                 )
 
-        return TransportError(error_code="SDK_ERROR", message=error_message)
+            if error_code.startswith("AUTHZ_"):
+                return TransportAuthorizationError(
+                    error_code=error_code,
+                    message=error_data.get("message") or _UNKNOWN_ERROR,
+                    timestamp=error_data.get("timestamp"),
+                    details=parsed_details,
+                    trace_id=parsed_trace_id,
+                )
+
+            if error_code.startswith("VAL_"):
+                return TransportValidationError(
+                    error_code=error_code,
+                    message=error_data.get("message") or _UNKNOWN_ERROR,
+                    timestamp=error_data.get("timestamp"),
+                    details=parsed_details,
+                    trace_id=parsed_trace_id,
+                )
+
+            if error_code.startswith("RES_"):
+                return TransportNotFoundError(
+                    error_code=error_code,
+                    message=error_data.get("message") or _UNKNOWN_ERROR,
+                    timestamp=error_data.get("timestamp"),
+                    details=parsed_details,
+                    trace_id=parsed_trace_id,
+                )
+
+            if error_code.startswith("INT_"):
+                return TransportServerError(
+                    error_code=error_code,
+                    message=error_data.get("message") or _UNKNOWN_ERROR,
+                    timestamp=error_data.get("timestamp"),
+                    details=parsed_details,
+                    trace_id=parsed_trace_id,
+                )
+
+            return TransportError(
+                error_code=error_code,
+                message=error_data.get("message") or _UNKNOWN_ERROR,
+                timestamp=error_data.get("timestamp"),
+                details=parsed_details,
+                trace_id=parsed_trace_id,
+            )
+
+        return TransportError(error_code="SDK_ERROR", message=error_message, trace_id=trace_id)
 
     except Exception as ex:
-        return TransportError(error_code="SDK_ERROR", message=str(ex))
+        return TransportError(error_code="SDK_ERROR", message=str(ex), trace_id=trace_id)
