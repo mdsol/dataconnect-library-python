@@ -107,7 +107,10 @@ class _TraceClientMiddleware(flight.ClientMiddleware):
 
         trace_id = values[0]
         if isinstance(trace_id, bytes):
-            trace_id = trace_id.decode("utf-8", errors="replace")
+            try:
+                trace_id = trace_id.decode("utf-8")
+            except UnicodeDecodeError:
+                return
         if trace_id:
             self._capture_trace_id(trace_id)
 
@@ -274,7 +277,7 @@ class ArrowFlightTransport(Transport):
         try:
             raw_flights = []
             for flight_info in self._client.list_flights(criteria, self._options()):
-                if not raw_flights and flight_info.app_metadata:
+                if self._trace_id is None and flight_info.app_metadata:
                     try:
                         metadata = json.loads(flight_info.app_metadata.decode("utf-8"))
                         if isinstance(metadata, dict):

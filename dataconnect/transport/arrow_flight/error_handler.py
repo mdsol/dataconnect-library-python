@@ -216,7 +216,7 @@ def parse_dataconnect_error(ex: Exception, trace_id: str | None = None) -> Trans
     """
     try:
         if isinstance(ex, TransportError):
-            if ex.trace_id is None:
+            if trace_id:
                 ex.trace_id = trace_id
             return ex
 
