@@ -74,6 +74,10 @@ class DefaultDataConnectService(DataConnectService):
     def __init__(self, transport: Transport) -> None:
         self._transport = transport
 
+    @property
+    def trace_id(self) -> str | None:
+        return getattr(self._transport, "trace_id", None)
+
     # DataConnectService
 
     def get_studies(self, search_study_name: str | None = None) -> StudiesResult:
@@ -88,11 +92,13 @@ class DefaultDataConnectService(DataConnectService):
             - ``studies``: list of :class:`Study` objects matching the criteria.
         """
 
+        self._transport.begin_request()
         request = ResourceQuery(action=_ACTION_LIST_STUDIES)
         request = request.append_body({"search_study_name": search_study_name})
 
         try:
-            resources = self._transport.list_resources(request)
+            result = self._transport.list_resources(request)
+            resources = result
             total_records = resources[0].total_records if resources else 0
             studies = [resource_to_study(r) for r in resources]
             return StudiesResult(total_records=total_records, studies=studies)
@@ -106,29 +112,32 @@ class DefaultDataConnectService(DataConnectService):
             dataset_uuid: UUID of the dataset whose versions are requested.
 
         Returns:
-            A list of :class:`DatasetVersion` objects for the given dataset.
+            The dataset versions, newest first.
 
         Raises:
             ValidationError: If *dataset_uuid* is not a valid UUID (upstream).
         """
 
+        self._transport.begin_request()
         request = ResourceQuery(action=_ACTION_LIST_DATASET_VERSIONS).append_body({"dataset_uuid": str(dataset_uuid)})
 
         try:
-            resources = self._transport.list_resources(request)
+            result = self._transport.list_resources(request)
 
             # Return Sorted dataset versions in descending order (newest first) based on the dataset_version field.
-            return sorted(
-                (resource_to_dataset_version(r) for r in resources),
+            versions = sorted(
+                (resource_to_dataset_version(r) for r in result),
                 key=lambda dv: dv.dataset_version,
                 reverse=True,
             )
+            return versions
         except Exception as ex:
             raise translate_error(ex) from ex
 
     def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None) -> pd.DataFrame:
         """Fetch data for a dataset"""
 
+        self._transport.begin_request()
         ticket = DatasetTicket(
             dataset_uuid=str(dataset_uuid),
             limit=_coerce_int_field("first_n_rows", first_n_rows),
@@ -159,6 +168,7 @@ class DefaultDataConnectService(DataConnectService):
             A :class:`PaginatedResponse` of :class:`Dataset` items matching the criteria.
         """
 
+        self._transport.begin_request()
         request = ResourceQuery(action=_ACTION_LIST_DATASETS).append_body(
             {
                 "study_environment_uuid": str(study_environment_uuid),
@@ -169,7 +179,8 @@ class DefaultDataConnectService(DataConnectService):
         )
 
         try:
-            resources = self._transport.list_resources(request)
+            result = self._transport.list_resources(request)
+            resources = result
             items = []
             for resource in resources:
                 dataset = resource_to_dataset(resource)
@@ -229,6 +240,7 @@ class DefaultDataConnectService(DataConnectService):
              for example :class:`ValidationError`,
              :class:`AuthorizationError`, or :class:`ServerError`."""
 
+        self._transport.begin_request()
         request = PublishRequest(
             input_config=json.dumps(
                 {
@@ -291,6 +303,7 @@ class DefaultDataConnectService(DataConnectService):
                 layer is translated by :func:`translate_error` into the public
                 API's :class:`DataConnectError` hierarchy before propagating.
         """
+        self._transport.begin_request()
         request = PublishRequest(
             input_config=json.dumps(
                 {
@@ -344,10 +357,11 @@ class DefaultDataConnectService(DataConnectService):
                 layer is translated by :func:`translate_error` into the public
                 API's :class:`DataConnectError` hierarchy.
         """
+        self._transport.begin_request()
         request = DatetimeFormatsRequest(project_token=project_token, format_type=format_type)
 
         try:
-            raw_formats = self._transport.get_datetime_formats(request)
+            formats_response = self._transport.get_datetime_formats(request)
         except TransportError as ex:
             raise translate_error(ex) from ex
 
@@ -356,7 +370,7 @@ class DefaultDataConnectService(DataConnectService):
                 format=fmt,
                 type="datetime" if "HH:mm" in fmt else "date",
             )
-            for fmt in raw_formats
+            for fmt in formats_response
         ]
 
         return DatetimeFormatsResult(formats=formats)

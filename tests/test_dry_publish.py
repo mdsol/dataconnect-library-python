@@ -18,7 +18,7 @@ import pyarrow as pa
 import pytest
 
 from dataconnect.exceptions import ValidationError
-from dataconnect.models import DatetimeFormatsResult, DryPublishResult
+from dataconnect.models import DryPublishResult
 from dataconnect.service.default import DefaultDataConnectService
 from dataconnect.service.mappers import dry_publish_response_to_domain
 from dataconnect.transport.arrow_flight.transport import (
@@ -30,6 +30,7 @@ from dataconnect.transport.errors import TransportValidationError
 from dataconnect.transport.models import (
     DatasetTicket,
     DataTable,
+    DatetimeFormatsRequest,
     DryPublishResponse,
     PublishRequest,
     PublishResponse,
@@ -225,6 +226,10 @@ class TestDryPublishResponseToDomain:
         result = dry_publish_response_to_domain(_make_dry_publish_response())
         assert isinstance(result, DryPublishResult)
 
+    def test_trace_id_is_not_added_to_result_contract(self) -> None:
+        result = dry_publish_response_to_domain(_make_dry_publish_response())
+        assert not hasattr(result, "trace_id")
+
 
 # ---------------------------------------------------------------------------
 # DefaultDataConnectService.dry_publish
@@ -258,7 +263,7 @@ class _StubTransport(Transport):
     def publish_dataset(self, publish_request: PublishRequest) -> PublishResponse:
         raise NotImplementedError
 
-    def get_datetime_formats(self, request: DatetimeFormatsResult) -> list[str]:  # type: ignore[override]
+    def get_datetime_formats(self, request: DatetimeFormatsRequest) -> list[str]:
         raise NotImplementedError
 
     def close(self) -> None:
@@ -513,6 +518,15 @@ class TestDryPublishDatasetTransport:
 
         result = transport.dry_publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
         assert isinstance(result, DryPublishResponse)
+
+    def test_captures_trace_id_from_response_payload_without_changing_result(self) -> None:
+        transport = _make_flight_transport()
+        _wire_do_put(transport, {**_VALID_JSON_RESP, "trace_id": "dry-publish-trace"})
+
+        result = transport.dry_publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
+
+        assert transport.trace_id == "dry-publish-trace"
+        assert not hasattr(result, "trace_id")
 
     def test_status_parsed_from_json(self) -> None:
         transport = _make_flight_transport()

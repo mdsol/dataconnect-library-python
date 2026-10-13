@@ -8,6 +8,7 @@ import pandas as pd
 import pyarrow as pa
 import pytest
 
+from dataconnect.client import DataConnectClient
 from dataconnect.exceptions import (
     AuthenticationError,
     AuthorizationError,
@@ -22,7 +23,7 @@ from dataconnect.transport.errors import (
     TransportNotFoundError,
     TransportServerError,
 )
-from dataconnect.transport.models import DatasetTicket, DataTable, ResourceInfo, ResourceQuery
+from dataconnect.transport.models import DatasetTicket, DataTable, ResourceQuery
 
 # ---------------------------------------------------------------------------
 # Fake transport
@@ -40,8 +41,12 @@ class _FakeTransport:
         self._data_table = data_table
         self._get_ticket_error = get_ticket_error
         self.last_ticket: DatasetTicket | None = None
+        self.trace_id: str | None = None
 
-    def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
+    def begin_request(self) -> None:
+        self.trace_id = None
+
+    def list_resources(self, request: ResourceQuery) -> list:
         return []
 
     def get_ticket(self, ticket: DatasetTicket) -> DataTable:
@@ -111,10 +116,12 @@ def test_fetch_data_no_limit_sends_none_in_ticket() -> None:
 def test_fetch_data_raises_formatted_validation_error_for_non_numeric_first_n_rows() -> None:
     dataset_uuid = UUID("073410b6-79be-3e7d-ae37-92f6e054013e")
     transport = _FakeTransport(data_table=_make_ipc_table({"x": [1]}))
+    transport.trace_id = "previous-trace"
     service = DefaultDataConnectService(transport)
+    client = DataConnectClient(service)
 
     with pytest.raises(ValidationError) as exc_info:
-        service.fetch_data(dataset_uuid, first_n_rows="ten")  # type: ignore[arg-type]
+        client.fetch_data(dataset_uuid, first_n_rows="ten")  # type: ignore[arg-type]
 
     error = str(exc_info.value)
     assert "Error Code: [INT_001]" in error
@@ -122,6 +129,7 @@ def test_fetch_data_raises_formatted_validation_error_for_non_numeric_first_n_ro
     assert "Field: first_n_rows" in error
     assert "Expected: Ensure you provide a numeric value for this field." in error
     assert transport.last_ticket is None
+    assert client.trace_id is None
 
 
 def test_fetch_data_raises_formatted_validation_error_for_dict_first_n_rows() -> None:

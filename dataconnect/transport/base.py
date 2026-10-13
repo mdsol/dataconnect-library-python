@@ -24,12 +24,19 @@ from dataconnect.transport.models import (
 class Transport(ABC):
     """Minimal abstract transport for DataConnect operations."""
 
+    def begin_request(self) -> None:
+        """Reset request-scoped transport state before service-side validation."""
+        return None
+
     @abstractmethod
     def list_resources(self, request: ResourceQuery) -> list[ResourceInfo]:
         """List available data resources matching the given query.
 
         The transport does not interpret the action name or body — that is the
         service layer's responsibility.
+
+        Returns:
+            The matched resources.
         """
 
     @abstractmethod
@@ -63,6 +70,9 @@ class Transport(ABC):
         The transport does not interpret ``format_type`` — that is the service
         layer's responsibility.  The server applies the filter and returns the
         already-filtered list of format strings.
+
+        Returns:
+            The filtered datetime formats.
         """
 
     @abstractmethod
