@@ -146,6 +146,8 @@ class _PublishEnvelopeResult:
     checks: ResultChecks = field(default_factory=ResultChecks)
     errors: list[str] = field(default_factory=list)
     invalid_records: pd.DataFrame | None = None
+    blinding_status: str | None = None
+    warnings: list[str] = field(default_factory=list)
 
     # Flat accessors below are deprecated views onto the envelope, kept so
     # existing notebooks keep working. Prefer metadata/metrics/checks.

@@ -147,6 +147,8 @@ def _envelope_to_domain(envelope: PublishEnvelope, result_cls: type[_ResultT]) -
         ),
         errors=envelope.errors,
         invalid_records=envelope.invalid_records,
+        blinding_status=envelope.blinding_status,
+        warnings=envelope.warnings,
     )
 
 
