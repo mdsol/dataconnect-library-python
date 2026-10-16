@@ -143,6 +143,8 @@ class PublishEnvelope:
     errors: list[str] = field(default_factory=list)
     invalid_records: pd.DataFrame | None = None
     """Populated from the Arrow IPC channel, not from the JSON payload."""
+    blinding_status: str | None = None
+    warnings: list[str] = field(default_factory=list)
 
     @classmethod
     def from_json(cls, payload: dict, invalid_records: pd.DataFrame | None = None) -> PublishEnvelope:
@@ -178,6 +180,8 @@ class PublishEnvelope:
             ),
             errors=payload.get("errors") or [],
             invalid_records=invalid_records,
+            blinding_status=payload.get("blinding_status"),
+            warnings=payload.get("warnings") or [],
         )
 
 
