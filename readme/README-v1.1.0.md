@@ -82,6 +82,15 @@ To use this library, you must have a valid iMedidata account and access to requi
 #### Publish Concurrency Locking
 * **Lock Behavior:** Only one active publish operation is permitted at a time. If a collaborator attempts to `publish()` while another user is actively publishing, the operation will be blocked.
 
+#### Blinding
+* **Applicability:** Blinding applies only to Data Catalog v2 study environments.
+* **`blinding_status` values:**
+  * `NOT_CONFIGURED`
+  * `NOT_UNBLINDING`
+  * `PARTIALLY_UNBLINDING`
+  * `UNBLINDING`
+* **`None`:** The server did not return a status, for example on v1.
+
 #### Troubleshooting
 * **Collaborator Access Failure:** If you receive an authorization or invalid token error, ensure your account is added as an authorized collaborator on the project. Contact a Project Owner to verify your access.
 * **Publish-Lock Failure:** If your publish is blocked due to a concurrent publish, wait a few minutes for the active execution to complete and retry.
@@ -150,7 +159,7 @@ Retrieves datasets for a specific study environment and returns paginated result
 #### Output
 Returns a `PaginatedResponse` containing `total_records` (total datasets available across all pages), `pagination`, and an `items` list. Each call retrieves one requested page; it does not automatically fetch subsequent pages.
 
-Each dataset retains `dataset_uuid`, `study_uuid`, `study_env_uuid`, and `dataset_name`, and also exposes `dataset_short_name`, `type`, `source`, `activation_status`, `dataset_status`, `collection`, `last_updated`, `version`, `other_versions`, and `frame`.
+Each dataset retains `dataset_uuid`, `study_uuid`, `study_env_uuid`, and `dataset_name`, and also exposes `dataset_short_name`, `type`, `source`, `activation_status`, `dataset_status`, `blinding_status` (str or None), `collection`, `last_updated`, `version`, `other_versions`, and `frame`.
 
 Missing or null metadata is represented as `None`; empty collections remain `[]` and empty strings remain `""`. `collection` is a list of strings, and `other_versions` is a list of dictionaries with `version` and `dataset_uuid` keys, or `None`. Version labels and timestamps remain strings without conversion.
 
@@ -174,7 +183,13 @@ Retrieves all available versions for a dataset.
 | dataset_uuid | UUID | Unique iMedidata dataset identifier. This is available in the output of datasets() function |
 
 #### Output
-Returns all available versions of the dataset.
+Returns all available versions of the dataset. Each version includes:
+* `study_uuid`
+* `study_environment_uuid`
+* `dataset_uuid`
+* `dataset_name`
+* `dataset_version`
+* `blinding_status` (str or None). See [Blinding](#blinding).
 
 ---
 
@@ -227,6 +242,8 @@ Returns a result object with the following attributes:
 * **`metrics`**: Row counts — `total_valid_rows`, `total_invalid_rows`, `total_duplicate_rows`.
 * **`checks`**: Validation outcomes — `schema_is_valid`, `config_is_valid`, `date_formats_are_valid`, `dataset_is_valid`, `invalid_datetime_formats`.
 * **`errors`**: List of validation error messages, if any.
+* **`blinding_status`**: The derived output blinding status, which is the most restrictive status among the source datasets. `None` when the server does not return one. See [Blinding](#blinding).
+* **`warnings`**: List of warning strings, empty when there are none. Separate from `errors`; a warning does not make `success` `False`. Currently the only message is the "partially restricted source" warning.
 * **`invalid_records`**: A data frame containing the rows that failed validation, or `None`.
 
 #### Data Validations
@@ -240,6 +257,17 @@ Returns a result object with the following attributes:
 | **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
 | **data**             | Invalid column name '{column.name}', it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
 | **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.      |
+
+
+#### Blinding Failures
+
+
+| Code | Message | Recommended action |
+|:-----|:--------|:-------------------|
+| VAL_014 | One or more source datasets are pending blinding configuration. Publishing is blocked until configuration is complete for all source datasets. | Wait until blinding configuration is complete for every source dataset, then retry. |
+| AUTHZ_003 | This project contains an unblinding dataset as a source; unavailable to use for your current role. | Remove the UNBLINDING source dataset from `source_datasets`, or publish with a role that is permitted to use it. |
+| VAL_015 | Publishing this version would change the dataset's blinding status from the previous version. A new version must retain the previous version's blinding status. Create a new project to use a different blinding status. | Use source datasets that keep the previous version's blinding status, or create a new project to publish with a different status. The same code is returned when the previous version cannot be verified; if so, contact Medidata Support. |
+| VAL_016 | This study environment is pending blinding configuration. Requests to this study environment are blocked until configuration is complete. | Wait until blinding configuration for the study environment is complete, then retry. |
 
 
 ### publish()
@@ -273,7 +301,11 @@ Returns a result object with the following attributes:
 * **`success`**: `True` if the dataset was published successfully.
 * **`metadata`**: Dataset identity (`dataset_name`, `dataset_version`, `column_count`, `dataset_uuid`).
 * **`metrics`**: Row counts — `total_valid_rows`, `total_invalid_rows`, `total_duplicate_rows`.
+* **`blinding_status`**: The derived output blinding status, which is the most restrictive status among the source datasets. `None` when the server does not return one. See [Blinding](#blinding).
+* **`warnings`**: List of warning strings, empty when there are none. Separate from `errors`; a warning does not make `success` `False`. Currently the only message is the "partially restricted source" warning.
 * **`invalid_records`**: A data frame containing any rows that failed validation, or `None`.
+
+Publish failures raise an error and no result is returned.
 
 Note: After a successful `publish()` call, it can take approximately 15-20 minutes for the dataset to appear in the iMedidata UI under Data Connect > Datasets. This delay is expected and does not indicate an error.
 
@@ -296,6 +328,16 @@ Note: After a successful `publish()` call, it can take approximately 15-20 minut
 - Supported error names: `NULL_KEY` (null/empty value in key column), `INVALID_VALUE` (invalid value in key column).
 - A summary is printed to the console for immediate visibility.
 - The full invalid records table is accessible programmatically from the error object.
+
+#### Blinding Failures
+
+
+| Code | Message | Recommended action |
+|:-----|:--------|:-------------------|
+| VAL_014 | One or more source datasets are pending blinding configuration. Publishing is blocked until configuration is complete for all source datasets. | Wait until blinding configuration is complete for every source dataset, then retry. |
+| AUTHZ_003 | This project contains an unblinding dataset as a source; unavailable to use for your current role. | Remove the UNBLINDING source dataset from `source_datasets`, or publish with a role that is permitted to use it. |
+| VAL_015 | Publishing this version would change the dataset's blinding status from the previous version. A new version must retain the previous version's blinding status. Create a new project to use a different blinding status. | Use source datasets that keep the previous version's blinding status, or create a new project to publish with a different status. The same code is returned when the previous version cannot be verified; if so, contact Medidata Support. |
+| VAL_016 | This study environment is pending blinding configuration. Requests to this study environment are blocked until configuration is complete. | Wait until blinding configuration for the study environment is complete, then retry. |
 
 
 
@@ -369,6 +411,8 @@ The library raises exceptions for many reasons, such as invalid parameters, auth
 | Error Code | Type | Scenario|
 | :--- | :--- |:---|
 | AUTHZ_001	| Authorization	| Authorization service check failed |
+| AUTHZ_002	| Authorization - Project Contributor | You are not allowed to publish to this project. Only project owners can publish to a project.
+| AUTHZ_003	| Authorization - Blinding Policy | This project contains an unblinding dataset as a source; unavailable to use for your current role.
 | VAL_002	| Validation - Page Number | Page number is not a positive integer
 | VAL_003	| Validation - Page Size | Page size is out of range [1, 100]
 | VAL_004	| Validation - Study Parameter | Invalid study uuid
@@ -381,6 +425,9 @@ The library raises exceptions for many reasons, such as invalid parameters, auth
 | VAL_011	| Validation - Pagination	| Pagination is out of range
 | VAL_012	| Validation - Concurrency | Project actively being published
 | VAL_013	| Validation - Formatting Error | Data validation failed. One or more records contain formatting errors.
+| VAL_014	| Validation - Blinding | One or more source datasets are pending blinding configuration. Publishing is blocked until configuration is complete for all source datasets.
+| VAL_015	| Validation - Blinding | Publishing this version would change the dataset's blinding status from the previous version. A new version must retain the previous version's blinding status. Create a new project to use a different blinding status.
+| VAL_016	| Validation - Blinding | This study environment is pending blinding configuration. Requests to this study environment are blocked until configuration is complete.
 | RES_002	| Resource Exceptions - Study Environment | No authorized Study Environments found for the authenticated user
 | RES_003	| Resource Exceptions - Invalid parameter | Incorrect UUID combination.
 | RES_004	| Resource Exceptions - Invalid parameter | Incorrect UUID combination.
