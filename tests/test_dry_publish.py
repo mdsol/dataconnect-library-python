@@ -62,6 +62,8 @@ def _make_dry_publish_response(**overrides: object) -> DryPublishResponse:
         "duplicate_record_count": 0,
         "invalid_record_count": 0,
         "invalid_records": None,
+        "blinding_status": None,
+        "warnings": [],
         **overrides,
     }
     return DryPublishResponse(
@@ -85,6 +87,8 @@ def _make_dry_publish_response(**overrides: object) -> DryPublishResponse:
         ),
         errors=flat["errors"],
         invalid_records=flat["invalid_records"],
+        blinding_status=flat["blinding_status"],
+        warnings=flat["warnings"],
     )
 
 
@@ -229,6 +233,24 @@ class TestDryPublishResponseToDomain:
     def test_trace_id_is_not_added_to_result_contract(self) -> None:
         result = dry_publish_response_to_domain(_make_dry_publish_response())
         assert not hasattr(result, "trace_id")
+
+    def test_blinding_status_mapped(self) -> None:
+        result = dry_publish_response_to_domain(_make_dry_publish_response(blinding_status="UNBLINDING"))
+        assert result.blinding_status == "UNBLINDING"
+
+    def test_warnings_list_mapped_without_conversion_to_errors(self) -> None:
+        warnings = ["Prior version had a different key column", "Source dataset pending blinding review"]
+        result = dry_publish_response_to_domain(_make_dry_publish_response(warnings=warnings))
+        assert result.warnings == warnings
+        assert result.errors == []
+
+    def test_blinding_status_defaults_to_none_when_omitted(self) -> None:
+        result = dry_publish_response_to_domain(_make_dry_publish_response())
+        assert result.blinding_status is None
+
+    def test_warnings_defaults_to_empty_list_when_omitted(self) -> None:
+        result = dry_publish_response_to_domain(_make_dry_publish_response())
+        assert result.warnings == []
 
 
 # ---------------------------------------------------------------------------
@@ -541,6 +563,25 @@ class TestDryPublishDatasetTransport:
 
         result = transport.dry_publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
         assert result.errors == ["err1", "err2"]
+
+    def test_blinding_fields_default_when_omitted_from_legacy_json(self) -> None:
+        transport = _make_flight_transport()
+        _wire_do_put(transport, _VALID_JSON_RESP)  # no blinding_status/warnings keys
+
+        result = transport.dry_publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
+        assert result.blinding_status is None
+        assert result.warnings == []
+
+    def test_blinding_fields_parsed_from_json_when_present(self) -> None:
+        transport = _make_flight_transport()
+        _wire_do_put(
+            transport,
+            {**_VALID_JSON_RESP, "blinding_status": "UNBLINDING", "warnings": ["w1", "w2"]},
+        )
+
+        result = transport.dry_publish_dataset(PublishRequest(input_config="{}", data=pd.DataFrame({"x": [1]})))
+        assert result.blinding_status == "UNBLINDING"
+        assert result.warnings == ["w1", "w2"]
 
     def test_none_ipc_buf_yields_no_invalid_records(self) -> None:
         transport = _make_flight_transport()
