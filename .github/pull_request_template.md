@@ -1,7 +1,7 @@
 ## feature/bug/enhance/refactor/tech_debt/hotfix
 
 - `Replace this line with Project title.`
-- [`MCC-XXXXXX`](https://jira.mdsol.com/secure/RapidBoard.jspa?rapidView=3080&view=detail&selectedIssue=MCC-XXXXXX)
+- [`MCC-XXXXXX`](https://mdsol.atlassian.net/browse/MCC-XXXXXX)
 
 ## Checklist
 
