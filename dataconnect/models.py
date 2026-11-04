@@ -14,6 +14,7 @@ T = TypeVar("T")
 class StudyEnvironment:
     uuid: UUID
     name: str
+    oid: str | None = None
 
 
 @dataclass(frozen=True)

@@ -53,7 +53,10 @@ def resource_to_study(resource: ResourceInfo) -> Study:
     return Study(
         uuid=UUID(data["uuid"]),
         name=data["name"],
-        environments=[StudyEnvironment(uuid=UUID(e["uuid"]), name=e["name"]) for e in data.get("environments", [])],
+        environments=[
+            StudyEnvironment(uuid=UUID(e["uuid"]), name=e["name"], oid=e.get("oid"))
+            for e in data.get("environments", [])
+        ],
     )
 
 

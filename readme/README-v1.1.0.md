@@ -127,7 +127,7 @@ Retrieves a list of studies where the user has permission to manage custom code 
 | search_study_name | str or None | Optional. The approximate name of the study |
 
 #### Output
-Returns a list containing `total_records` (total studies available) and a `studies` array. Each study includes `name`, `uuid`, and an environments array. Each environment includes `name` and `uuid`.
+Returns a list containing `total_records` (total studies available) and a `studies` array. Each study includes `name`, `uuid`, and an environments array. Each environment includes `name`, `uuid`, and `oid` — the upstream study environment OID.
 
 ---
 
