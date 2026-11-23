@@ -154,7 +154,7 @@ Retrieves datasets for a specific study environment and returns paginated result
 #### Output
 Returns a `PaginatedResponse` containing `total_records` (total datasets available across all pages), `pagination`, and an `items` list. Each call retrieves one requested page; it does not automatically fetch subsequent pages.
 
-Each dataset retains `dataset_uuid`, `study_uuid`, `study_env_uuid`, and `dataset_name`, and also exposes `dataset_short_name`, `type`, `source`, `activation_status`, `dataset_status`, `blinding_status` (str or None), `collection`, `last_updated`, `version`, `other_versions`, and `frame`.
+Each dataset retains `dataset_uuid`, `study_uuid`, `study_env_uuid`, and `dataset_name`, and also exposes `dataset_short_name`, `type`, `source`, `activation_status`, `dataset_status`, `collection`, `last_updated`, `version`, `other_versions`, and `frame`.
 
 Missing or null metadata is represented as `None`; empty collections remain `[]` and empty strings remain `""`. `collection` is a list of strings, and `other_versions` is a list of dictionaries with `version` and `dataset_uuid` keys, or `None`. Version labels and timestamps remain strings without conversion.
 
@@ -178,13 +178,7 @@ Retrieves all available versions for a dataset.
 | dataset_uuid | UUID | Unique iMedidata dataset identifier. This is available in the output of datasets() function |
 
 #### Output
-Returns all available versions of the dataset. Each version includes:
-* `study_uuid`
-* `study_environment_uuid`
-* `dataset_uuid`
-* `dataset_name`
-* `dataset_version`
-* `blinding_status` (str or None). See [Blinding](#blinding).
+Returns all available versions of the dataset.
 
 ---
 
@@ -285,8 +279,6 @@ Returns a result object with the following attributes:
 * **`metadata`**: Dataset identity (`dataset_name`, `dataset_version`, `column_count`, `dataset_uuid`).
 * **`metrics`**: Row counts — `total_valid_rows`, `total_invalid_rows`, `total_duplicate_rows`.
 * **`invalid_records`**: A data frame containing any rows that failed validation, or `None`.
-
-Publish failures raise an error and no result is returned.
 
 Note: After a successful `publish()` call, it can take approximately 15-20 minutes for the dataset to appear in the iMedidata UI under Data Connect > Datasets. This delay is expected and does not indicate an error.
 
