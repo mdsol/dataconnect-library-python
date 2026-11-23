@@ -79,17 +79,12 @@ To use this library, you must have a valid iMedidata account and access to requi
 * **Collaborator Capabilities:** Any authorized collaborator can use the shared project token to perform both `dry_publish()` and `publish()` operations to the same Custom Code project.
 * **Management Permissions:** Only **Project Owners** (as designated in the UI) can add or remove collaborators.
 
-#### Publish Concurrency Locking
-* **Lock Behavior:** Only one active publish operation is permitted at a time. If a collaborator attempts to `publish()` while another user is actively publishing, the operation will be blocked.
-
-#### Blinding
-* **Applicability:** Blinding applies only to Data Catalog v2 study environments.
-* **`blinding_status` values:**
-  * `NOT_CONFIGURED`
-  * `NOT_UNBLINDING`
-  * `PARTIALLY_UNBLINDING`
-  * `UNBLINDING`
-* **`None`:** The server did not return a status, for example on v1.
+* **Blinding/Unblinding:**
+  * **Note:** This feature is currently in a limited release and is being enabled on an individual, client-by-client basis and is ONLY enabled in Innovate for new studies.
+  * Integrates blinding and masking controls directly into Data Connect R and Python libraries, restricting unblinding datasets, fields, or masking values based on the user’s provisioning role.
+  * Restricts custom code projects and custom transformed datasets for blinded users when a source dataset consisting of unblinding or masked data is used during a publish operation.
+  * `datasets()` includes a `blinding_status` property to indicate whether a dataset is `UNBLINDING`, `NOT_UNBLINDING`, or `PARTIALLY_UNBLINDING`.
+  * Datasets that require blinding configuration but are awaiting user configuration are not available to fetch or use in R/Python functions.
 
 #### Troubleshooting
 * **Collaborator Access Failure:** If you receive an authorization or invalid token error, ensure your account is added as an authorized collaborator on the project. Contact a Project Owner to verify your access.
@@ -242,8 +237,6 @@ Returns a result object with the following attributes:
 * **`metrics`**: Row counts — `total_valid_rows`, `total_invalid_rows`, `total_duplicate_rows`.
 * **`checks`**: Validation outcomes — `schema_is_valid`, `config_is_valid`, `date_formats_are_valid`, `dataset_is_valid`, `invalid_datetime_formats`.
 * **`errors`**: List of validation error messages, if any.
-* **`blinding_status`**: The derived output blinding status, which is the most restrictive status among the source datasets. `None` when the server does not return one. See [Blinding](#blinding).
-* **`warnings`**: List of warning strings, empty when there are none. Separate from `errors`; a warning does not make `success` `False`. Currently the only message is the "partially restricted source" warning.
 * **`invalid_records`**: A data frame containing the rows that failed validation, or `None`.
 
 #### Data Validations
@@ -258,24 +251,14 @@ Returns a result object with the following attributes:
 | **data**             | Invalid column name '{column.name}', it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
 | **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.      |
 
-
-#### Blinding Failures
-
-
-| Code | Message | Recommended action |
-|:-----|:--------|:-------------------|
-| VAL_014 | One or more source datasets are pending blinding configuration. Publishing is blocked until configuration is complete for all source datasets. | Wait until blinding configuration is complete for every source dataset, then retry. |
-| AUTHZ_003 | This project contains an unblinding dataset as a source; unavailable to use for your current role. | Remove the UNBLINDING source dataset from `source_datasets`, or publish with a role that is permitted to use it. |
-| VAL_015 | Publishing this version would change the dataset's blinding status from the previous version. A new version must retain the previous version's blinding status. Create a new project to use a different blinding status. | Use source datasets that keep the previous version's blinding status, or create a new project to publish with a different status. The same code is returned when the previous version cannot be verified; if so, contact Medidata Support. |
-| VAL_016 | This study environment is pending blinding configuration. Requests to this study environment are blocked until configuration is complete. | Wait until blinding configuration for the study environment is complete, then retry. |
-
-
 ### publish()
 
 #### Description
 
 Publish dataset to Data Connect.
 
+#### Publish Concurrency Locking
+* **Lock Behavior:** Only one active publish operation is permitted at a time. If a collaborator attempts to `publish()` while another user is actively publishing, the operation will be blocked.
 
 #### Usage
 
@@ -301,8 +284,6 @@ Returns a result object with the following attributes:
 * **`success`**: `True` if the dataset was published successfully.
 * **`metadata`**: Dataset identity (`dataset_name`, `dataset_version`, `column_count`, `dataset_uuid`).
 * **`metrics`**: Row counts — `total_valid_rows`, `total_invalid_rows`, `total_duplicate_rows`.
-* **`blinding_status`**: The derived output blinding status, which is the most restrictive status among the source datasets. `None` when the server does not return one. See [Blinding](#blinding).
-* **`warnings`**: List of warning strings, empty when there are none. Separate from `errors`; a warning does not make `success` `False`. Currently the only message is the "partially restricted source" warning.
 * **`invalid_records`**: A data frame containing any rows that failed validation, or `None`.
 
 Publish failures raise an error and no result is returned.
@@ -328,18 +309,6 @@ Note: After a successful `publish()` call, it can take approximately 15-20 minut
 - Supported error names: `NULL_KEY` (null/empty value in key column), `INVALID_VALUE` (invalid value in key column).
 - A summary is printed to the console for immediate visibility.
 - The full invalid records table is accessible programmatically from the error object.
-
-#### Blinding Failures
-
-
-| Code | Message | Recommended action |
-|:-----|:--------|:-------------------|
-| VAL_014 | One or more source datasets are pending blinding configuration. Publishing is blocked until configuration is complete for all source datasets. | Wait until blinding configuration is complete for every source dataset, then retry. |
-| AUTHZ_003 | This project contains an unblinding dataset as a source; unavailable to use for your current role. | Remove the UNBLINDING source dataset from `source_datasets`, or publish with a role that is permitted to use it. |
-| VAL_015 | Publishing this version would change the dataset's blinding status from the previous version. A new version must retain the previous version's blinding status. Create a new project to use a different blinding status. | Use source datasets that keep the previous version's blinding status, or create a new project to publish with a different status. The same code is returned when the previous version cannot be verified; if so, contact Medidata Support. |
-| VAL_016 | This study environment is pending blinding configuration. Requests to this study environment are blocked until configuration is complete. | Wait until blinding configuration for the study environment is complete, then retry. |
-
-
 
 ### get_datetime_formats()
 
