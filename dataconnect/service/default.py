@@ -1,0 +1,384 @@
+"""Default service implementation — domain logic, encoding, and error translation."""
+
+from __future__ import annotations
+
+import json
+from dataclasses import replace
+from datetime import UTC, datetime
+from uuid import UUID
+
+import pandas as pd
+
+from dataconnect.exceptions import ErrorDetail, ValidationError
+from dataconnect.models import (
+    Dataset,
+    DatasetFrame,
+    DatasetVersion,
+    DatetimeFormat,
+    DatetimeFormatsResult,
+    DryPublishResult,
+    PaginatedResponse,
+    Pagination,
+    PublishResult,
+    StudiesResult,
+)
+from dataconnect.service.base import DataConnectService
+from dataconnect.service.error_handler import translate_error
+from dataconnect.service.mappers import (
+    dry_publish_response_to_domain,
+    publish_response_to_domain,
+    resource_to_dataset,
+    resource_to_dataset_version,
+    resource_to_fetched_data,
+    resource_to_study,
+)
+from dataconnect.transport.base import Transport
+from dataconnect.transport.errors import TransportError
+from dataconnect.transport.models import (
+    DatasetTicket,
+    DatetimeFormatsRequest,
+    PublishRequest,
+    ResourceQuery,
+)
+
+# Server action identifiers
+_ACTION_LIST_STUDIES = "studies.list"
+_ACTION_LIST_DATASETS = "datasets.list"
+_ACTION_LIST_DATASET_VERSIONS = "dataset_versions.list"
+
+
+def _coerce_int_field(field: str, field_value: int | None) -> int | None:
+    if field_value is None:
+        return None
+
+    try:
+        return int(field_value)
+    except (ValueError, TypeError) as ex:
+        message = str(ex) if isinstance(ex, ValueError) else f"invalid literal for int() with base 10: {field_value}"
+        raise ValidationError(
+            error_code="INT_001",
+            message=message,
+            timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            details=[
+                ErrorDetail(
+                    field=field,
+                    expected="Ensure you provide a numeric value for this field.",
+                )
+            ],
+        ) from ex
+
+
+class DefaultDataConnectService(DataConnectService):
+    """Concrete service injected with an abstract ``Transport``."""
+
+    def __init__(self, transport: Transport) -> None:
+        self._transport = transport
+
+    @property
+    def trace_id(self) -> str | None:
+        return getattr(self._transport, "trace_id", None)
+
+    # DataConnectService
+
+    def get_studies(self, search_study_name: str | None = None) -> StudiesResult:
+        """List studies the authenticated user can access.
+
+        Args:
+            search_study_name: Optional full or partial study name filter.
+
+        Returns:
+            A :class:`StudiesResult` containing:
+            - ``total_records``: total number of studies accessible to the authenticated user.
+            - ``studies``: list of :class:`Study` objects matching the criteria.
+        """
+
+        self._transport.begin_request()
+        request = ResourceQuery(action=_ACTION_LIST_STUDIES)
+        request = request.append_body({"search_study_name": search_study_name})
+
+        try:
+            result = self._transport.list_resources(request)
+            resources = result
+            total_records = resources[0].total_records if resources else 0
+            studies = [resource_to_study(r) for r in resources]
+            return StudiesResult(total_records=total_records, studies=studies)
+        except Exception as ex:
+            raise translate_error(ex) from ex
+
+    def get_dataset_versions(self, dataset_uuid: UUID) -> list[DatasetVersion]:
+        """List available versions for a dataset.
+
+        Args:
+            dataset_uuid: UUID of the dataset whose versions are requested.
+
+        Returns:
+            The dataset versions, newest first.
+
+        Raises:
+            ValidationError: If *dataset_uuid* is not a valid UUID (upstream).
+        """
+
+        self._transport.begin_request()
+        request = ResourceQuery(action=_ACTION_LIST_DATASET_VERSIONS).append_body({"dataset_uuid": str(dataset_uuid)})
+
+        try:
+            result = self._transport.list_resources(request)
+
+            # Return Sorted dataset versions in descending order (newest first) based on the dataset_version field.
+            versions = sorted(
+                (resource_to_dataset_version(r) for r in result),
+                key=lambda dv: dv.dataset_version,
+                reverse=True,
+            )
+            return versions
+        except Exception as ex:
+            raise translate_error(ex) from ex
+
+    def fetch_data(self, dataset_uuid: UUID, first_n_rows: int | None = None) -> pd.DataFrame:
+        """Fetch data for a dataset"""
+
+        self._transport.begin_request()
+        ticket = DatasetTicket(
+            dataset_uuid=str(dataset_uuid),
+            limit=_coerce_int_field("first_n_rows", first_n_rows),
+        )
+
+        try:
+            table = self._transport.get_ticket(ticket)
+            return resource_to_fetched_data(table)
+        except TransportError as ex:
+            raise translate_error(ex) from ex
+
+    def get_datasets(
+        self,
+        study_environment_uuid: UUID,
+        search_dataset_name: str = "",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> PaginatedResponse[Dataset]:
+        """List datasets for a study environment.
+
+        Args:
+            study_environment_uuid: UUID of the study environment (required).
+            search_dataset_name: Full or partial dataset name filter.
+            page: Page number for paginated results.
+            page_size: Number of results per page.
+
+        Returns:
+            A :class:`PaginatedResponse` of :class:`Dataset` items matching the criteria.
+        """
+
+        self._transport.begin_request()
+        request = ResourceQuery(action=_ACTION_LIST_DATASETS).append_body(
+            {
+                "study_environment_uuid": str(study_environment_uuid),
+                "search_dataset_name": search_dataset_name,
+                "page": page,
+                "page_size": page_size,
+            }
+        )
+
+        try:
+            result = self._transport.list_resources(request)
+            resources = result
+            items = []
+            for resource in resources:
+                dataset = resource_to_dataset(resource)
+                frame = (
+                    DatasetFrame(dataset.dataset_uuid, self.fetch_data) if dataset.dataset_uuid is not None else None
+                )
+                items.append(replace(dataset, frame=frame))
+            total_records = resources[0].total_records if resources else 0
+            total_pages = (total_records + page_size - 1) // page_size if page_size > 0 else 0
+            return PaginatedResponse(
+                total_records=total_records,
+                pagination=Pagination(page=page, page_size=page_size, total_pages=total_pages),
+                items=items,
+            )
+        except TransportError as ex:
+            raise translate_error(ex) from ex
+
+    def dry_publish(
+        self,
+        project_token: str,
+        dataset_name: str,
+        key_columns: list[str],
+        source_datasets: list[UUID],
+        data: pd.DataFrame,
+        datetime_formats: dict[str, str] | None = None,
+    ) -> DryPublishResult:
+        """Validate a dataset against the server without committing any changes.
+
+        Encodes the publish configuration as a JSON ``input_config`` string,
+        sets ``is_dry_publish: True`` so the server treats the call as a
+        validation-only run, then delegates to the transport layer.
+
+        The server response is mapped to a :class:`DryPublishResult` via
+        :func:`dry_publish_response_to_domain`.
+
+        Args:
+            project_token: Base64-encoded project token identifying the target
+                study, study environment, and project.
+            dataset_name: Name of the dataset to validate.
+            key_columns: Column names that form the unique key for the dataset.
+            source_datasets: UUIDs of the source datasets the published dataset
+                is derived from.
+            data: The dataset to validate as a ``pd.DataFrame``.
+            datetime_formats: Optional mapping of column name → datetime format
+                string (e.g. ``{"visit_date": "yyyy-MM-dd"}``).  Defaults to
+                an empty dict when omitted.
+
+        Returns:
+            A :class:`DryPublishResult` containing the server's validation
+            outcome, including per-field validity flags, error messages, and
+            an optional ``invalid_records`` DataFrame.
+
+        Raises:
+             DataConnectError: Any :class:`TransportError` from the transport
+             layer is translated by :func:`translate_error` into the public
+             API's :class:`DataConnectError` hierarchy before propagating,
+             for example :class:`ValidationError`,
+             :class:`AuthorizationError`, or :class:`ServerError`."""
+
+        self._transport.begin_request()
+        request = PublishRequest(
+            input_config=json.dumps(
+                {
+                    "is_dry_publish": True,
+                    "project_token": project_token,
+                    "dataset_name": dataset_name,
+                    "dataset_description": dataset_name,
+                    "key_columns": key_columns,
+                    "source_datasets": [str(uuid) for uuid in source_datasets],
+                    "datetime_formats": datetime_formats or {},
+                }
+            ),
+            data=data,
+        )
+
+        try:
+            publish_result = self._transport.dry_publish_dataset(request)
+
+            return dry_publish_response_to_domain(publish_result)
+
+        except TransportError as ex:
+            raise translate_error(ex) from ex
+
+    def publish(
+        self,
+        project_token: str,
+        dataset_name: str,
+        key_columns: list[str],
+        source_datasets: list[UUID],
+        data: pd.DataFrame,
+        datetime_formats: dict[str, str] | None = None,
+    ) -> PublishResult:
+        """Publish a dataset to the server and return the result.
+
+        Encodes the publish configuration as a JSON ``input_config`` string,
+        sets ``is_dry_publish: False`` so the server treats the call as a
+        live publish run, then delegates to the transport layer.
+
+        The server response is mapped to a :class:`PublishResult` via
+        :func:`publish_response_to_domain`.
+
+        Args:
+            project_token: Base64-encoded project token identifying the target
+                study, study environment, and project.
+            dataset_name: Name of the dataset to publish.
+            key_columns: Column names that form the unique key for the dataset.
+            source_datasets: UUIDs of the source datasets the published dataset
+                is derived from.
+            data: The dataset to publish as a ``pd.DataFrame``.
+            datetime_formats: Optional mapping of column name → datetime format
+                string (e.g. ``{"visit_date": "yyyy-MM-dd"}``).  Defaults to
+                an empty dict when omitted.
+
+        Returns:
+            A :class:`PublishResult` containing the server's publish outcome,
+            including dataset UUID, version, and record counts.
+
+        Raises:
+            DataConnectError: Any :class:`TransportError` from the transport
+                layer is translated by :func:`translate_error` into the public
+                API's :class:`DataConnectError` hierarchy before propagating.
+        """
+        self._transport.begin_request()
+        request = PublishRequest(
+            input_config=json.dumps(
+                {
+                    "is_dry_publish": False,
+                    "project_token": project_token,
+                    "dataset_name": dataset_name,
+                    "dataset_description": dataset_name,
+                    "key_columns": key_columns,
+                    "source_datasets": [str(uuid) for uuid in source_datasets],
+                    "datetime_formats": datetime_formats or {},
+                }
+            ),
+            data=data,
+        )
+
+        try:
+            publish_result = self._transport.publish_dataset(request)
+
+            return publish_response_to_domain(publish_result)
+
+        except TransportError as ex:
+            raise translate_error(ex) from ex
+
+    def get_datetime_formats(
+        self,
+        project_token: str,
+        format_type: str = "all",
+    ) -> DatetimeFormatsResult:
+        """Return the supported datetime formats filtered by ``format_type``.
+
+        The server validates and filters the list according to ``format_type``;
+        the service then classifies each returned format as ``"date"`` or ``"datetime"``
+        (based on whether the format contains a time component ``"HH:mm"``) and
+        wraps everything in a :class:`DatetimeFormatsResult` that exposes the
+        :meth:`~DatetimeFormatsResult.all`,
+        :meth:`~DatetimeFormatsResult.dates` and
+        :meth:`~DatetimeFormatsResult.datetimes` helpers.
+
+        Args:
+            project_token: Base64-encoded project token identifying the target
+                study, study environment, and project.  Required by the server
+                for authorization.
+            format_type: Filter to apply server-side.  One of ``"all"``
+                (default), ``"date"``, or ``"datetime"``.
+
+        Returns:
+            A :class:`DatetimeFormatsResult` containing the classified formats.
+
+        Raises:
+            DataConnectError: Any :class:`TransportError` from the transport
+                layer is translated by :func:`translate_error` into the public
+                API's :class:`DataConnectError` hierarchy.
+        """
+        self._transport.begin_request()
+        request = DatetimeFormatsRequest(project_token=project_token, format_type=format_type)
+
+        try:
+            formats_response = self._transport.get_datetime_formats(request)
+        except TransportError as ex:
+            raise translate_error(ex) from ex
+
+        formats = [
+            DatetimeFormat(
+                format=fmt,
+                type="datetime" if "HH:mm" in fmt else "date",
+            )
+            for fmt in formats_response
+        ]
+
+        return DatetimeFormatsResult(formats=formats)
+
+    def close(self) -> None:
+        """Close the underlying transport connection."""
+
+        try:
+            self._transport.close()
+        except TransportError as ex:
+            raise translate_error(ex) from ex
