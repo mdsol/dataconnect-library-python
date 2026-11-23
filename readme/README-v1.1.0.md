@@ -79,8 +79,12 @@ To use this library, you must have a valid iMedidata account and access to requi
 * **Collaborator Capabilities:** Any authorized collaborator can use the shared project token to perform both `dry_publish()` and `publish()` operations to the same Custom Code project.
 * **Management Permissions:** Only **Project Owners** (as designated in the UI) can add or remove collaborators.
 
-#### Publish Concurrency Locking
-* **Lock Behavior:** Only one active publish operation is permitted at a time. If a collaborator attempts to `publish()` while another user is actively publishing, the operation will be blocked.
+* **Blinding/Unblinding:**
+  * **Note:** This feature is currently in a limited release and is being enabled on an individual, client-by-client basis and is ONLY enabled in Innovate for new studies.
+  * Integrates blinding and masking controls directly into Data Connect R and Python libraries, restricting unblinding datasets, fields, or masking values based on the user’s provisioning role.
+  * Restricts custom code projects and custom transformed datasets for blinded users when a source dataset consisting of unblinding or masked data is used during a publish operation.
+  * `datasets()` includes a `blinding_status` property to indicate whether a dataset is `UNBLINDING`, `NOT_UNBLINDING`, or `PARTIALLY_UNBLINDING`.
+  * Datasets that require blinding configuration but are awaiting user configuration are not available to fetch or use in R/Python functions.
 
 #### Troubleshooting
 * **Collaborator Access Failure:** If you receive an authorization or invalid token error, ensure your account is added as an authorized collaborator on the project. Contact a Project Owner to verify your access.
@@ -241,13 +245,14 @@ Returns a result object with the following attributes:
 | **data**             | Invalid column name '{column.name}', it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
 | **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.      |
 
-
 ### publish()
 
 #### Description
 
 Publish dataset to Data Connect.
 
+#### Publish Concurrency Locking
+* **Lock Behavior:** Only one active publish operation is permitted at a time. If a collaborator attempts to `publish()` while another user is actively publishing, the operation will be blocked.
 
 #### Usage
 
@@ -296,8 +301,6 @@ Note: After a successful `publish()` call, it can take approximately 15-20 minut
 - Supported error names: `NULL_KEY` (null/empty value in key column), `INVALID_VALUE` (invalid value in key column).
 - A summary is printed to the console for immediate visibility.
 - The full invalid records table is accessible programmatically from the error object.
-
-
 
 ### get_datetime_formats()
 
@@ -369,6 +372,8 @@ The library raises exceptions for many reasons, such as invalid parameters, auth
 | Error Code | Type | Scenario|
 | :--- | :--- |:---|
 | AUTHZ_001	| Authorization	| Authorization service check failed |
+| AUTHZ_002	| Authorization - Project Contributor | You are not allowed to publish to this project. Only project owners can publish to a project.
+| AUTHZ_003	| Authorization - Blinding Policy | This project contains an unblinding dataset as a source; unavailable to use for your current role.
 | VAL_002	| Validation - Page Number | Page number is not a positive integer
 | VAL_003	| Validation - Page Size | Page size is out of range [1, 100]
 | VAL_004	| Validation - Study Parameter | Invalid study uuid
@@ -381,6 +386,9 @@ The library raises exceptions for many reasons, such as invalid parameters, auth
 | VAL_011	| Validation - Pagination	| Pagination is out of range
 | VAL_012	| Validation - Concurrency | Project actively being published
 | VAL_013	| Validation - Formatting Error | Data validation failed. One or more records contain formatting errors.
+| VAL_014	| Validation - Blinding | One or more source datasets are pending blinding configuration. Publishing is blocked until configuration is complete for all source datasets.
+| VAL_015	| Validation - Blinding | Publishing this version would change the dataset's blinding status from the previous version. A new version must retain the previous version's blinding status. Create a new project to use a different blinding status.
+| VAL_016	| Validation - Blinding | This study environment is pending blinding configuration. Requests to this study environment are blocked until configuration is complete.
 | RES_002	| Resource Exceptions - Study Environment | No authorized Study Environments found for the authenticated user
 | RES_003	| Resource Exceptions - Invalid parameter | Incorrect UUID combination.
 | RES_004	| Resource Exceptions - Invalid parameter | Incorrect UUID combination.
